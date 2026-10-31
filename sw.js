@@ -1,6 +1,6 @@
 // Simple cache-first service worker for the T-Bank PWA.
 // Bump CACHE_VERSION when you ship a new build so clients fetch fresh files.
-const CACHE_VERSION = 'tbank-v2';
+const CACHE_VERSION = 'tbank-v3';
 const ASSETS = [
   './',
   'index.html',

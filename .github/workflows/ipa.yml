@@ -40,6 +40,15 @@ jobs:
       - name: Add iOS platform
         run: npx cap add ios
 
+      - name: Apply app icon and launch screen
+        run: |
+          ICON_DIR=ios/App/App/Assets.xcassets/AppIcon.appiconset
+          SPLASH_DIR=ios/App/App/Assets.xcassets/Splash.imageset
+          find "$ICON_DIR" -name '*.png' -exec cp ../icons/icon-1024.png {} \;
+          find "$SPLASH_DIR" -name '*.png' -exec cp ../icons/splash-2732.png {} \;
+          echo "--- AppIcon"; ls -l "$ICON_DIR"
+          echo "--- Splash"; ls -l "$SPLASH_DIR"
+
       - name: Sync Capacitor
         run: npx cap sync ios
 
