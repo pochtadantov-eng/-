@@ -1,0 +1,8 @@
+{
+  "appId": "com.pochtadantov.tbank",
+  "appName": "T-Bank",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "always"
+  }
+}
