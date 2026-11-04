@@ -19,6 +19,38 @@ local CAVE_COUNT = 6
 local terrain = Workspace.Terrain
 local caveMouths = {} -- мировые позиции входов в пещеры
 
+-- Поляны (x, z относительно центра карты)
+local MEADOWS = {
+	Vector2.new(-140, 90),
+	Vector2.new(120, -110),
+	Vector2.new(-95, -135),
+	Vector2.new(150, 115),
+}
+
+local function inMeadow(x, z, extra)
+	for _, m in MEADOWS do
+		local dx, dz = x - m.X, z - m.Y
+		if dx * dx + dz * dz < (34 + extra) ^ 2 then
+			return true
+		end
+	end
+	return false
+end
+
+local rayParams
+local function rayGround(x, z)
+	if not rayParams then
+		rayParams = RaycastParams.new()
+		rayParams.FilterType = Enum.RaycastFilterType.Include
+		rayParams.FilterDescendantsInstances = { terrain }
+	end
+	return Workspace:Raycast(
+		Vector3.new(ORIGIN.X + x, ORIGIN.Y + 220, ORIGIN.Z + z),
+		Vector3.new(0, -300, 0),
+		rayParams
+	)
+end
+
 -- Высота рельефа в точке (x, z) относительно центра карты
 local function heightAt(x, z)
 	local nx, nz = x / SIZE, z / SIZE
@@ -41,6 +73,14 @@ local function heightAt(x, z)
 	local s = 1 - math.clamp((d - 20) / 40, 0, 1)
 	s = s * s * (3 - 2 * s)
 	h += (15 - h) * s
+
+	-- поляны: пологие места среди холмов
+	for _, m in MEADOWS do
+		local md = math.sqrt((x - m.X) ^ 2 + (z - m.Y) ^ 2)
+		local ms = 1 - math.clamp((md - 28) / 36, 0, 1)
+		ms = ms * ms * (3 - 2 * ms)
+		h += (13 - h) * ms * 0.9
+	end
 
 	return math.clamp(h, 5, 156)
 end
@@ -226,10 +266,11 @@ function Forest.makeTree(cf, scale, rng)
 
 	local trunk = Instance.new("Part")
 	trunk.Name = "Trunk"
+	trunk.Shape = Enum.PartType.Cylinder
 	trunk.Material = Enum.Material.Wood
 	trunk.Color = Color3.fromRGB(94, 66, 41)
-	trunk.Size = Vector3.new(1.6 * scale, trunkH, 1.6 * scale)
-	trunk.CFrame = cf * CFrame.new(0, trunkH / 2 - 1, 0)
+	trunk.Size = Vector3.new(trunkH, 1.6 * scale, 1.6 * scale)
+	trunk.CFrame = cf * CFrame.new(0, trunkH / 2 - 1, 0) * CFrame.Angles(0, 0, math.rad(90))
 	setPart(trunk, true)
 	trunk.Parent = model
 
@@ -277,6 +318,9 @@ function Forest.makeRock(cf, size, rng)
 	rock.CFrame = cf
 		* CFrame.Angles(rng:NextNumber(-0.4, 0.4), rng:NextNumber(0, math.pi * 2), rng:NextNumber(-0.4, 0.4))
 		* CFrame.new(0, size * 0.15, 0)
+	local mesh = Instance.new("SpecialMesh")
+	mesh.MeshType = Enum.MeshType.Sphere
+	mesh.Parent = rock
 	setPart(rock, true)
 	return rock
 end
@@ -311,7 +355,7 @@ local function placeProps()
 		end
 		local x = rng:NextNumber(-HALF + 8, HALF - 8)
 		local z = rng:NextNumber(-HALF + 8, HALF - 8)
-		if x * x + z * z > 30 * 30 then
+		if x * x + z * z > 30 * 30 and not inMeadow(x, z, 8) then
 			local density = math.noise(x * 0.012 + 4.4, z * 0.012 + 1.3) + 0.55
 			local key = math.floor(x / 7) .. "," .. math.floor(z / 7)
 			if rng:NextNumber() < density and not occupied[key] then
@@ -342,7 +386,7 @@ local function placeProps()
 		end
 		local x = rng:NextNumber(-HALF + 8, HALF - 8)
 		local z = rng:NextNumber(-HALF + 8, HALF - 8)
-		if x * x + z * z > 20 * 20 then
+		if x * x + z * z > 20 * 20 and not inMeadow(x, z, 0) then
 			local hit = ground(x, z)
 			if hit and hit.Normal.Y > 0.5 and hit.Material ~= Enum.Material.Snow and not nearCave(hit.Position) then
 				local size = rng:NextNumber(2.5, 7)
@@ -354,6 +398,36 @@ local function placeProps()
 			end
 		end
 	end
+
+	-- цветы на полянах
+	local palette = {
+		Color3.fromRGB(240, 90, 90),
+		Color3.fromRGB(250, 220, 80),
+		Color3.fromRGB(245, 245, 245),
+		Color3.fromRGB(170, 120, 240),
+		Color3.fromRGB(255, 150, 60),
+	}
+	for _, m in MEADOWS do
+		for n = 1, 70 do
+			if n % 25 == 0 then
+				task.wait()
+			end
+			local a = rng:NextNumber(0, math.pi * 2)
+			local r = math.sqrt(rng:NextNumber()) * 32
+			local hit = ground(m.X + math.cos(a) * r, m.Y + math.sin(a) * r)
+			if hit and hit.Normal.Y > 0.9 and hit.Material ~= Enum.Material.Snow then
+				local flower = Instance.new("Part")
+				flower.Shape = Enum.PartType.Ball
+				flower.Size = Vector3.one * 0.7
+				flower.Position = hit.Position + Vector3.new(0, 0.3, 0)
+				flower.Color = palette[rng:NextInteger(1, #palette)]
+				setPart(flower, false)
+				flower.Parent = folder
+			end
+		end
+	end
+
+	Forest.buildCampsite(folder)
 end
 
 function Forest.generate()
@@ -369,22 +443,116 @@ function Forest.waitUntilReady()
 	end
 end
 
--- Точки появления игроков на поляне в центре карты
-function Forest.spawnPoints(count)
-	local params = RaycastParams.new()
-	params.FilterType = Enum.RaycastFilterType.Include
-	params.FilterDescendantsInstances = { terrain }
+-- Лагерь в центре карты: костёр, брёвна-сиденья и две палатки
+function Forest.buildCampsite(folder)
+	local hit = rayGround(0, 0)
+	local gy = hit and hit.Position.Y or (ORIGIN.Y + 15)
+	local C = Vector3.new(ORIGIN.X, gy, ORIGIN.Z)
 
+	local camp = Instance.new("Model")
+	camp.Name = "Campsite"
+	camp.Parent = folder
+
+	local function add(shape, size, cf, color, material, collide)
+		local p = Instance.new("Part")
+		p.Shape = shape
+		p.Size = size
+		p.CFrame = cf
+		p.Color = color
+		p.Material = material
+		setPart(p, collide ~= false)
+		p.Parent = camp
+		return p
+	end
+
+	-- камни вокруг костра
+	for i = 1, 10 do
+		local a = i / 10 * math.pi * 2
+		add(
+			Enum.PartType.Ball,
+			Vector3.one * (1.2 + (i % 3) * 0.25),
+			CFrame.new(C + Vector3.new(math.cos(a) * 2.5, 0.4, math.sin(a) * 2.5)),
+			Color3.fromRGB(118, 118, 122),
+			Enum.Material.Slate
+		)
+	end
+
+	-- поленья в огне
+	for i = 0, 2 do
+		add(
+			Enum.PartType.Cylinder,
+			Vector3.new(4.6, 0.7, 0.7),
+			CFrame.new(C + Vector3.new(0, 0.7, 0)) * CFrame.Angles(0, math.rad(60 * i), math.rad(14)),
+			Color3.fromRGB(60, 40, 28),
+			Enum.Material.Wood,
+			false
+		)
+	end
+
+	-- огонь и свет
+	local firePart = Instance.new("Part")
+	firePart.Name = "Fire"
+	firePart.Size = Vector3.one
+	firePart.Position = C + Vector3.new(0, 1.2, 0)
+	firePart.Transparency = 1
+	setPart(firePart, false)
+	firePart.Parent = camp
+	local fire = Instance.new("Fire")
+	fire.Size = 6
+	fire.Heat = 10
+	fire.Color = Color3.fromRGB(255, 160, 50)
+	fire.SecondaryColor = Color3.fromRGB(220, 60, 20)
+	fire.Parent = firePart
+	local smoke = Instance.new("Smoke")
+	smoke.Size = 3
+	smoke.Opacity = 0.15
+	smoke.RiseVelocity = 6
+	smoke.Parent = firePart
+	local light = Instance.new("PointLight")
+	light.Range = 32
+	light.Brightness = 2.2
+	light.Color = Color3.fromRGB(255, 150, 70)
+	light.Parent = firePart
+
+	-- брёвна-сиденья вокруг костра
+	for i = 0, 4 do
+		local a = math.rad(20 + i * 62)
+		add(
+			Enum.PartType.Cylinder,
+			Vector3.new(5, 1.1, 1.1),
+			CFrame.new(C + Vector3.new(math.cos(a) * 6.2, 0.55, math.sin(a) * 6.2)) * CFrame.Angles(0, -(a + math.pi / 2), 0),
+			Color3.fromRGB(110, 78, 50),
+			Enum.Material.Wood
+		)
+	end
+
+	-- палатки (лицом к костру)
+	local function tent(offset, color)
+		local pos = C + offset
+		local cf = CFrame.lookAt(pos, Vector3.new(C.X, pos.Y, C.Z))
+		add(Enum.PartType.Block, Vector3.new(7, 0.2, 8), cf * CFrame.new(0, 0.1, 0), Color3.fromRGB(55, 50, 45), Enum.Material.Fabric)
+		for _, side in { 1, -1 } do
+			add(
+				Enum.PartType.Block,
+				Vector3.new(5.44, 0.3, 8.4),
+				cf * CFrame.new(side * 1.75, 2.1, 0) * CFrame.Angles(0, 0, -side * math.rad(50)),
+				color,
+				Enum.Material.Fabric
+			)
+		end
+	end
+	tent(Vector3.new(-15, 0, -7), Color3.fromRGB(215, 120, 50))
+	tent(Vector3.new(14, 0, -10), Color3.fromRGB(70, 130, 175))
+end
+
+-- Точки появления игроков вокруг костра
+function Forest.spawnPoints(count)
 	local points = {}
 	for i = 1, count do
-		local angle = (i / count) * math.pi * 2
-		local x = math.cos(angle) * 8
-		local z = math.sin(angle) * 8
-		local hit = Workspace:Raycast(
-			Vector3.new(ORIGIN.X + x, ORIGIN.Y + 220, ORIGIN.Z + z),
-			Vector3.new(0, -300, 0),
-			params
-		)
+		local angle = (i / count) * math.pi * 2 + 0.4
+		local x = math.cos(angle) * 9
+		local z = math.sin(angle) * 9
+		local hit = rayGround(x, z)
 		local y = hit and hit.Position.Y or (ORIGIN.Y + 15)
 		local pos = Vector3.new(ORIGIN.X + x, y + 4, ORIGIN.Z + z)
 		points[i] = CFrame.lookAt(pos, Vector3.new(ORIGIN.X, pos.Y, ORIGIN.Z))

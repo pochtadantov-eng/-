@@ -2,10 +2,14 @@
 --
 -- Состояния круга:
 --   empty     — никого нет, зайти может первый (он станет владельцем)
---   setup     — владелец внутри и выбирает карту/число игроков; остальные не заходят
+--   setup     — владелец внутри и выбирает карту/число игроков; барьер закрыт для всех
 --   open      — лобби создано, пока есть свободные места, другие могут зайти
 --   countdown — лобби заполнено, идёт таймер (владелец может пропустить)
 --   running   — поездка и игра, круг занят
+--
+-- Барьер: у тех, кто внутри круга, особая коллизионная группа «PadMemberN», которая
+-- не пускает их через стенку барьера. Выйти можно только кнопкой «Выйти».
+-- Для остальных стенка твёрдая, кроме состояний empty и open (есть места).
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -46,6 +50,18 @@ local function isValidMap(id)
 	return false
 end
 
+local function setGroup(player, name)
+	local char = player.Character
+	if not char then
+		return
+	end
+	for _, d in char:GetDescendants() do
+		if d:IsA("BasePart") then
+			d.CollisionGroup = name
+		end
+	end
+end
+
 local function refreshVisual(p)
 	local text
 	if p.state == "empty" then
@@ -62,6 +78,20 @@ local function refreshVisual(p)
 	end
 	p.info.label.Text = text
 	p.info.part.Color = COLORS[p.state]
+
+	local mode
+	if p.state == "empty" then
+		mode = "hidden"
+	elseif p.state == "open" and #p.members < p.size then
+		mode = "open"
+	else
+		mode = "blocked"
+	end
+	local key = mode .. p.state
+	if p.barrierKey ~= key then
+		p.barrierKey = key
+		p.info.setBarrier(mode, COLORS[p.state])
+	end
 end
 
 local function sendState(player)
@@ -118,10 +148,11 @@ local function pushOut(player, p)
 	root.AssemblyLinearVelocity = Vector3.zero
 end
 
-local function inside(p, pos)
+local function inside(p, pos, margin)
 	local c = p.info.center
 	local dx, dz = pos.X - c.X, pos.Z - c.Z
-	return dx * dx + dz * dz <= p.info.radius ^ 2 and math.abs(pos.Y - c.Y) < 8
+	local r = p.info.radius + margin
+	return dx * dx + dz * dz <= r * r and math.abs(pos.Y - c.Y) < 8
 end
 
 local function startCountdown(p)
@@ -140,6 +171,7 @@ local function removeMember(player)
 		table.remove(p.members, idx)
 	end
 	memberPad[player] = nil
+	setGroup(player, "Default")
 	sendState(player)
 
 	if player == p.owner then
@@ -147,6 +179,7 @@ local function removeMember(player)
 		local others = table.clone(p.members)
 		for _, m in others do
 			memberPad[m] = nil
+			setGroup(m, "Default")
 			sendState(m)
 			pushOut(m, p)
 		end
@@ -165,6 +198,7 @@ end
 local function join(p, player)
 	table.insert(p.members, player)
 	memberPad[player] = p
+	setGroup(player, "PadMember" .. p.info.id)
 	if p.state == "empty" then
 		p.owner = player
 		p.state = "setup"
@@ -192,6 +226,7 @@ local function begin(p)
 			warn("[Cutscene] ошибка: " .. tostring(err))
 			for _, m in roster do
 				if m.Parent == Players then
+					Remotes.CutsceneFx:FireClient(m, "Loading", false)
 					Remotes.CutsceneFx:FireClient(m, "Fade", false, 0.5)
 					task.spawn(function()
 						m:LoadCharacter()
@@ -202,6 +237,7 @@ local function begin(p)
 		Cutscene.cleanup(p.info.id)
 		for _, m in roster do
 			memberPad[m] = nil
+			setGroup(m, "Default")
 			sendState(m)
 		end
 		resetPad(p)
@@ -220,13 +256,14 @@ local function step()
 					removeMember(player)
 				end
 			else
-				if cur and not inside(cur, root.Position) then
+				if cur and not inside(cur, root.Position, 1) then
+					-- запасной вариант: если игрок всё же оказался вне круга
 					removeMember(player)
 					cur = nil
 				end
 				if not cur then
 					for _, p in pads do
-						if inside(p, root.Position) then
+						if inside(p, root.Position, -1) then
 							if p.state == "empty" then
 								join(p, player)
 							elseif p.state == "open" and #p.members < p.size then
@@ -264,6 +301,7 @@ function LobbyService.start(hubPads)
 			map = nil,
 			size = 0,
 			countdownEnd = nil,
+			barrierKey = nil,
 		}
 		table.insert(pads, p)
 		refreshVisual(p)

@@ -2,7 +2,7 @@
 local RunService = game:GetService("RunService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
-local NAMES = { "LobbyAction", "LobbyState", "CutsceneFx" }
+local NAMES = { "LobbyAction", "LobbyState", "CutsceneFx", "ClientReady" }
 
 local folder
 if RunService:IsServer() then

@@ -12,6 +12,12 @@ local Forest = require(script.Parent.Forest)
 
 local Cutscene = {}
 
+-- Клиент сообщает, что земля в лесу у него уже загрузилась (иначе персонаж проваливается и умирает)
+local terrainReady = {}
+Remotes.ClientReady.OnServerEvent:Connect(function(player)
+	terrainReady[player] = true
+end)
+
 -- Размеры грузовика (локальные координаты: +X — вперёд, +Z — вправо, Y — вверх)
 local FLOOR_TOP = 3.0
 local REAR = -9 -- задний край кузова
@@ -381,6 +387,11 @@ function Cutscene.run(padId, players, mapId)
 	-- 5. Затемнение и телепорт в лес
 	fade(players, true, 0.8)
 	task.wait(1.0)
+	for _, pl in players do
+		if pl.Parent == Players then
+			Remotes.CutsceneFx:FireClient(pl, "Loading", true)
+		end
+	end
 
 	Forest.waitUntilReady()
 	local spawns = Forest.spawnPoints(#riders)
@@ -397,10 +408,40 @@ function Cutscene.run(padId, players, mapId)
 			hum.JumpHeight = r.jumpHeight
 			char:PivotTo(spawns[i])
 			root.AssemblyLinearVelocity = Vector3.zero
+			root.Anchored = true -- держим на месте, пока клиент не загрузит землю
+			terrainReady[r.player] = nil
+			Remotes.CutsceneFx:FireClient(r.player, "WaitTerrain", spawns[i].Position)
 		end
 	end
 
-	task.wait(0.8)
+	local waitStart = os.clock()
+	while os.clock() - waitStart < 25 do
+		local all = true
+		for _, r in riders do
+			if r.player.Parent == Players and not terrainReady[r.player] then
+				all = false
+			end
+		end
+		if all then
+			break
+		end
+		task.wait(0.2)
+	end
+
+	for _, r in riders do
+		local _, _, root = charParts(r.player)
+		if root then
+			root.Anchored = false
+		end
+		terrainReady[r.player] = nil
+	end
+
+	task.wait(0.4)
+	for _, pl in players do
+		if pl.Parent == Players then
+			Remotes.CutsceneFx:FireClient(pl, "Loading", false)
+		end
+	end
 	fade(players, false, 1.0)
 end
 
