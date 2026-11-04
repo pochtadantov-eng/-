@@ -16,13 +16,16 @@ Lighting.EnvironmentDiffuseScale = 1
 Lighting.EnvironmentSpecularScale = 1
 
 local atmosphere = Instance.new("Atmosphere")
-atmosphere.Density = 0.25
+atmosphere.Density = 0.2
 atmosphere.Offset = 0.15
 atmosphere.Color = Color3.fromRGB(199, 215, 235)
 atmosphere.Decay = Color3.fromRGB(150, 170, 200)
 atmosphere.Glare = 0.3
 atmosphere.Haze = 0.6
 atmosphere.Parent = Lighting
+
+local sky = Instance.new("Sky")
+sky.Parent = Lighting
 
 local sunRays = Instance.new("SunRaysEffect")
 sunRays.Intensity = 0.12
@@ -45,8 +48,8 @@ clouds.Cover = 0.5
 clouds.Density = 0.6
 clouds.Parent = Workspace.Terrain
 
+-- Лес генерируется в фоне, пока строится хаб и игроки в нём
+task.spawn(Forest.generate)
+
 local pads = Hub.build()
 LobbyService.start(pads)
-
--- Лес генерируется в фоне, пока игроки в хабе
-task.spawn(Forest.generate)

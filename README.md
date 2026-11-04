@@ -29,7 +29,8 @@
 | `src/shared/Config.luau` | Настройки: размер лобби, таймер, карты, координаты сцен |
 | `src/shared/Remotes.luau` | RemoteEvent'ы клиент↔сервер |
 | `src/server/Main.server.luau` | Точка входа, освещение |
-| `src/server/Hub.luau` | Площадка и 4 круга |
+| `src/server/Hub.luau` | Площадь, забор, дорога, 4 круга с невидимыми барьерами |
+| `src/server/Scenery.luau` | Фон: дома, высотки, горы |
 | `src/server/LobbyService.luau` | Состояния кругов, владелец, вход/выход, таймер |
 | `src/server/Cutscene.luau` | Грузовик, лесник, поездка, телепорт |
 | `src/server/Forest.luau` | Генерация террейна, пещер, деревьев и камней |

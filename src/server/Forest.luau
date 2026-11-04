@@ -254,54 +254,83 @@ local function setPart(part, collide)
 	part.BottomSurface = Enum.SurfaceType.Smooth
 end
 
--- Дерево (сосна или лиственное). cf — точка на земле.
+-- Дерево: ель, дуб или берёза. cf — точка на земле.
 function Forest.makeTree(cf, scale, rng)
 	rng = rng or Random.new()
 	local model = Instance.new("Model")
 	model.Name = "Tree"
 
-	local pine = rng:NextNumber() < 0.6
-	local trunkH = (pine and 12 or 9) * scale
-	local shade = rng:NextNumber(-12, 12)
+	local function addPart(shape, size, rel, color, material, collide)
+		local p = Instance.new("Part")
+		p.Shape = shape
+		p.Size = size
+		p.CFrame = cf * rel
+		p.Color = color
+		p.Material = material
+		setPart(p, collide)
+		p.Parent = model
+		return p
+	end
 
-	local trunk = Instance.new("Part")
-	trunk.Name = "Trunk"
-	trunk.Shape = Enum.PartType.Cylinder
-	trunk.Material = Enum.Material.Wood
-	trunk.Color = Color3.fromRGB(94, 66, 41)
-	trunk.Size = Vector3.new(trunkH, 1.6 * scale, 1.6 * scale)
-	trunk.CFrame = cf * CFrame.new(0, trunkH / 2 - 1, 0) * CFrame.Angles(0, 0, math.rad(90))
-	setPart(trunk, true)
-	trunk.Parent = model
+	-- мягкий овал (сплюснутая сфера) для хвои и листвы
+	local function blob(size, rel, color)
+		local p = addPart(Enum.PartType.Block, size, rel, color, Enum.Material.Grass, false)
+		local mesh = Instance.new("SpecialMesh")
+		mesh.MeshType = Enum.MeshType.Sphere
+		mesh.Parent = p
+		return p
+	end
 
-	local leafColor = Color3.fromRGB(34 + shade, 92 + shade, 48 + shade)
+	local function trunk(height, thickness, color)
+		return addPart(
+			Enum.PartType.Cylinder,
+			Vector3.new(height, thickness, thickness),
+			CFrame.new(0, height / 2 - 1, 0) * CFrame.Angles(0, 0, math.rad(90)),
+			color,
+			Enum.Material.Wood,
+			true
+		)
+	end
 
-	if pine then
-		local diameters = { 10, 8, 6, 3.6 }
-		for i, d in diameters do
-			local layer = Instance.new("Part")
-			layer.Name = "Needles" .. i
-			layer.Shape = Enum.PartType.Cylinder
-			layer.Material = Enum.Material.Grass
-			layer.Color = leafColor
-			layer.Size = Vector3.new(3.2 * scale, d * scale, d * scale)
-			layer.CFrame = cf * CFrame.new(0, trunkH * 0.45 + (i - 1) * 2.4 * scale, 0) * CFrame.Angles(0, 0, math.rad(90))
-			setPart(layer, false)
-			layer.Parent = model
+	local kind = rng:NextNumber()
+	local shade = rng:NextNumber(-12, 14)
+	local lean = CFrame.Angles(rng:NextNumber(-0.04, 0.04), 0, rng:NextNumber(-0.04, 0.04))
+
+	if kind < 0.5 then
+		-- ель: много мягких ярусов
+		trunk(9 * scale, 1.5 * scale, Color3.fromRGB(88, 62, 40))
+		local layers = 7
+		for i = 1, layers do
+			local t = (i - 1) / (layers - 1)
+			local d = (11.5 - t * 8.5) * scale
+			local y = (2.6 + i * 2.0) * scale
+			local col = Color3.fromRGB(26 + shade + i * 2, 78 + shade + i * 3, 44 + shade)
+			blob(Vector3.new(d, 3.4 * scale, d), lean * CFrame.new(0, y, 0) * CFrame.Angles(0, i, 0), col)
 		end
+		blob(Vector3.new(2.2 * scale, 4 * scale, 2.2 * scale), lean * CFrame.new(0, (2.6 + layers * 2.0 + 1.6) * scale, 0), Color3.fromRGB(34 + shade, 92 + shade, 54 + shade))
+	elseif kind < 0.85 then
+		-- дуб: толстый ствол и пышная неровная крона
+		local h = 8 * scale
+		trunk(h, 2.0 * scale, Color3.fromRGB(96, 70, 46))
+		local crownY = h + 2.5 * scale
+		local count = 6
+		for i = 1, count do
+			local a = i / count * math.pi * 2
+			local off = Vector3.new(math.cos(a) * 2.6 * scale, rng:NextNumber(-1, 1.5) * scale, math.sin(a) * 2.6 * scale)
+			local d = rng:NextNumber(5.5, 7.5) * scale
+			local col = Color3.fromRGB(58 + shade + rng:NextInteger(-6, 6), 112 + shade + rng:NextInteger(-8, 8), 50 + shade)
+			blob(Vector3.new(d, d * 0.85, d), lean * CFrame.new(Vector3.new(0, crownY, 0) + off), col)
+		end
+		blob(Vector3.new(8 * scale, 7 * scale, 8 * scale), lean * CFrame.new(0, crownY + 1.8 * scale, 0), Color3.fromRGB(70 + shade, 128 + shade, 58 + shade))
 	else
-		local offsets = { Vector3.new(0, 0, 0), Vector3.new(2.2, -1, 1), Vector3.new(-2, -0.8, -1.5) }
-		for i, off in offsets do
-			local ball = Instance.new("Part")
-			ball.Name = "Crown" .. i
-			ball.Shape = Enum.PartType.Ball
-			ball.Material = Enum.Material.Grass
-			ball.Color = leafColor
-			local d = (i == 1 and 9 or 7) * scale
-			ball.Size = Vector3.new(d, d, d)
-			ball.CFrame = cf * CFrame.new(Vector3.new(0, trunkH + 2 * scale, 0) + off * scale)
-			setPart(ball, false)
-			ball.Parent = model
+		-- берёза: светлый ствол и лёгкая крона
+		local h = 10 * scale
+		trunk(h, 1.1 * scale, Color3.fromRGB(232, 230, 222))
+		for i = 1, 4 do
+			local a = i * 1.7
+			local off = Vector3.new(math.cos(a) * 1.4 * scale, i * 1.2 * scale, math.sin(a) * 1.4 * scale)
+			local d = rng:NextNumber(4, 5.5) * scale
+			blob(Vector3.new(d, d * 1.2, d), lean * CFrame.new(Vector3.new(0, h + scale, 0) + off), Color3.fromRGB(120 + shade, 172 + shade, 70 + shade))
 		end
 	end
 

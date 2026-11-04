@@ -6,6 +6,7 @@ local PhysicsService = game:GetService("PhysicsService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Forest = require(script.Parent.Forest)
+local Scenery = require(script.Parent.Scenery)
 
 local Hub = { pads = {} }
 
@@ -57,31 +58,25 @@ end
 
 -- ===== Земля =====
 local function buildTerrain()
-	-- основная трава
-	terrain:FillBlock(CFrame.new(0, -8, -60), Vector3.new(700, 16, 500), Enum.Material.Grass)
-
-	-- дальние холмы по краям
-	for i = 1, 16 do
-		local ang = (i / 16) * PI2
-		local pos = Vector3.new(math.cos(ang) * 280, rng:NextNumber(-22, -8), math.sin(ang) * 180 - 60)
-		local r = rng:NextNumber(35, 60)
-		if math.abs(pos.Z - ROAD_Z) > r + 30 then
-			terrain:FillBall(pos, r, Enum.Material.Grass)
-		end
-	end
+	-- основная трава (большая, чтобы край мира был за горами)
+	terrain:FillBlock(CFrame.new(0, -8, -60), Vector3.new(1000, 16, 800), Enum.Material.Grass)
 
 	-- круглая площадь и пятно у фонтана
 	terrain:FillCylinder(CFrame.new(0, -2, 0), 4, PLAZA_R, Enum.Material.Pavement)
 	terrain:FillCylinder(CFrame.new(0, -2, 22), 4, 17, Enum.Material.Concrete)
 
 	-- дорога и тротуары
-	terrain:FillBlock(CFrame.new(0, -2, ROAD_Z), Vector3.new(700, 4, 24), Enum.Material.Asphalt)
-	terrain:FillBlock(CFrame.new(0, -2, ROAD_Z + 15), Vector3.new(700, 4, 6), Enum.Material.Pavement)
-	terrain:FillBlock(CFrame.new(0, -2, ROAD_Z - 15), Vector3.new(700, 4, 6), Enum.Material.Pavement)
+	terrain:FillBlock(CFrame.new(0, -2, ROAD_Z), Vector3.new(960, 4, 24), Enum.Material.Asphalt)
+	terrain:FillBlock(CFrame.new(0, -2, ROAD_Z + 15), Vector3.new(960, 4, 6), Enum.Material.Pavement)
+	terrain:FillBlock(CFrame.new(0, -2, ROAD_Z - 15), Vector3.new(960, 4, 6), Enum.Material.Pavement)
 
+	terrain:SetMaterialColor(Enum.Material.Grass, Color3.fromRGB(86, 140, 62))
 	terrain:SetMaterialColor(Enum.Material.Pavement, Color3.fromRGB(176, 170, 160))
 	terrain:SetMaterialColor(Enum.Material.Concrete, Color3.fromRGB(205, 200, 192))
 	terrain:SetMaterialColor(Enum.Material.Asphalt, Color3.fromRGB(58, 58, 62))
+	terrain:SetMaterialColor(Enum.Material.Rock, Color3.fromRGB(118, 116, 120))
+
+	Scenery.buildMountains(terrain, rng)
 end
 
 -- ===== Забор по кругу с воротами =====
@@ -132,11 +127,6 @@ local function buildFence(folder)
 		w.Transparency = 1
 		w.CanQuery = false
 	end
-
-	-- Страховочный пол под площадью
-	local floor = cyl(fence, 1, WALL_R * 2 + 4, Vector3.new(0, -0.5, 0), Color3.new(), Enum.Material.SmoothPlastic)
-	floor.Transparency = 1
-	floor.CanQuery = false
 end
 
 -- ===== Ворота у спавна =====
@@ -238,7 +228,7 @@ local function buildBenches(folder)
 end
 
 -- ===== Зелень: кусты, цветы, деревья =====
-local function buildGreenery(folder)
+local function buildGreenery(folder, houseSpots)
 	local f = Instance.new("Folder")
 	f.Name = "Greenery"
 	f.Parent = folder
@@ -278,9 +268,24 @@ local function buildGreenery(folder)
 			tree(pos.X, pos.Z)
 		end
 	end
-	for _ = 1, 130 do
-		local pos = polar(rng:NextNumber(113, 230), rng:NextNumber(0, PI2))
+	local function nearHouse(x, z)
+		for _, h in houseSpots do
+			local dx, dz = x - h.X, z - h.Y
+			if dx * dx + dz * dz < 24 * 24 then
+				return true
+			end
+		end
+		return false
+	end
+	for _ = 1, 70 do
+		local pos = polar(rng:NextNumber(110, 145), rng:NextNumber(0, PI2))
 		if math.abs(pos.Z - ROAD_Z) > 30 then
+			tree(pos.X, pos.Z)
+		end
+	end
+	for _ = 1, 260 do
+		local pos = polar(rng:NextNumber(150, 330), rng:NextNumber(0, PI2))
+		if math.abs(pos.Z - ROAD_Z) > 30 and not nearHouse(pos.X, pos.Z) then
 			tree(pos.X, pos.Z)
 		end
 	end
@@ -292,11 +297,11 @@ local function buildRoadMarkings(folder)
 	f.Name = "Road"
 	f.Parent = folder
 	local white = Color3.fromRGB(240, 240, 235)
-	for x = -340, 340, 14 do
+	for x = -470, 470, 14 do
 		mk(f, Enum.PartType.Block, Vector3.new(6, 0.1, 0.5), CFrame.new(x, 0.06, ROAD_Z), white, Enum.Material.SmoothPlastic).CanCollide = false
 	end
 	for _, dz in { -11, 11 } do
-		mk(f, Enum.PartType.Block, Vector3.new(700, 0.1, 0.4), CFrame.new(0, 0.06, ROAD_Z + dz), white, Enum.Material.SmoothPlastic).CanCollide = false
+		mk(f, Enum.PartType.Block, Vector3.new(960, 0.1, 0.4), CFrame.new(0, 0.06, ROAD_Z + dz), white, Enum.Material.SmoothPlastic).CanCollide = false
 	end
 end
 
@@ -323,8 +328,8 @@ local function buildPads(folder)
 			folder,
 			Enum.PartType.Cylinder,
 			Vector3.new(0.35, radius * 2 + 2, radius * 2 + 2),
-			CFrame.new(x, 0.1, z) * CFrame.Angles(0, 0, math.rad(90)),
-			Color3.fromRGB(235, 235, 230),
+			CFrame.new(x, 0.3, z) * CFrame.Angles(0, 0, math.rad(90)),
+			Color3.fromRGB(245, 245, 240),
 			Enum.Material.Marble
 		)
 		rim.Name = "PadRim" .. i
@@ -334,7 +339,7 @@ local function buildPads(folder)
 			folder,
 			Enum.PartType.Cylinder,
 			Vector3.new(0.3, radius * 2, radius * 2),
-			CFrame.new(x, 0.15, z) * CFrame.Angles(0, 0, math.rad(90)),
+			CFrame.new(x, 0.35, z) * CFrame.Angles(0, 0, math.rad(90)),
 			Color3.fromRGB(90, 220, 120),
 			Enum.Material.Neon
 		)
@@ -400,10 +405,9 @@ local function buildPads(folder)
 
 		-- mode: "hidden" (круг свободен), "open" (можно зайти), "blocked" (занят)
 		local function setBarrier(mode, color)
-			local transparency = mode == "hidden" and 1 or (mode == "open" and 0.93 or 0.8)
+			-- стенка невидима всегда, меняется только то, пропускает ли она посторонних
 			for _, seg in segParts do
-				seg.Transparency = transparency
-				seg.Color = color
+				seg.Transparency = 1
 			end
 			PhysicsService:CollisionGroupSetCollidable(barrierGroup, "Default", mode == "blocked")
 		end
@@ -419,33 +423,43 @@ local function buildPads(folder)
 	end
 end
 
-function Hub.build()
-	local folder = Instance.new("Folder")
-	folder.Name = "Hub"
-	folder.Parent = Workspace
-
-	buildTerrain()
-	buildFence(folder)
-	buildGate(folder)
-	buildFountain(folder)
-	buildLamps(folder)
-	buildBenches(folder)
-	buildGreenery(folder)
-	buildRoadMarkings(folder)
-	buildPads(folder)
+-- Пол-страховка и точка появления создаются первыми, пока строится остальное
+local function buildSafety(folder)
+	local floor = cyl(folder, 1, WALL_R * 2 + 4, Vector3.new(0, -0.5, 0), Color3.new(), Enum.Material.SmoothPlastic)
+	floor.Name = "SafetyFloor"
+	floor.Transparency = 1
+	floor.CanQuery = false
 
 	-- Невидимая точка появления у ворот (никакой платформы)
 	local spawn = Instance.new("SpawnLocation")
 	spawn.Name = "HubSpawn"
 	spawn.Anchored = true
 	spawn.Size = Vector3.new(6, 0.2, 6)
-	spawn.CFrame = CFrame.new(0, 0.1, 62)
+	spawn.CFrame = CFrame.new(0, 0.1, 50)
 	spawn.Neutral = true
 	spawn.Duration = 0
 	spawn.Transparency = 1
 	spawn.CanCollide = false
 	spawn.CanQuery = false
 	spawn.Parent = folder
+end
+
+function Hub.build()
+	local folder = Instance.new("Folder")
+	folder.Name = "Hub"
+	folder.Parent = Workspace
+
+	buildSafety(folder)
+	buildTerrain()
+	local houseSpots = Scenery.buildTown(folder, rng)
+	buildFence(folder)
+	buildGate(folder)
+	buildFountain(folder)
+	buildLamps(folder)
+	buildBenches(folder)
+	buildGreenery(folder, houseSpots)
+	buildRoadMarkings(folder)
+	buildPads(folder)
 
 	return Hub.pads
 end
