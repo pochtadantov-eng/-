@@ -1,9 +1,0 @@
-{
-  "appId": "com.pochtadantov.tbank",
-  "appName": "T-Bank",
-  "webDir": "www",
-  "backgroundColor": "#D2C8C3",
-  "ios": {
-    "contentInset": "never"
-  }
-}
