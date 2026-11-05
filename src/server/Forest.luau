@@ -299,14 +299,28 @@ function Forest.makeTree(cf, scale, rng)
 	local function tone(r, g, b)
 		return Color3.fromRGB(math.clamp(r + shade, 0, 255), math.clamp(g + shade, 0, 255), math.clamp(b + shade, 0, 255))
 	end
-	local function sphere(d, rel, color)
-		return addPart(Enum.PartType.Ball, Vector3.one * d, rel, color, Enum.Material.SmoothPlastic, false)
+	-- гранёный кусок кроны: блок, повёрнутый под случайным углом (на него можно встать)
+	local function chunk(size, pos, color)
+		local rot = CFrame.Angles(rng:NextNumber(0, math.pi * 2), rng:NextNumber(0, math.pi * 2), rng:NextNumber(0, math.pi * 2))
+		return addPart(Enum.PartType.Block, size, CFrame.new(pos) * rot, color, Enum.Material.SmoothPlastic, true)
+	end
+	-- расширение ствола у корней
+	local function rootFlare(thickness, color)
+		addPart(
+			Enum.PartType.Cylinder,
+			Vector3.new(1.2 * scale, thickness * 1.55, thickness * 1.55),
+			CFrame.new(0, 0.1 * scale, 0) * CFrame.Angles(0, 0, math.rad(90)),
+			color,
+			Enum.Material.Wood,
+			true
+		)
 	end
 
 	if kind < 0.55 then
-		-- ель: три гранёных конуса друг над другом (аккуратный low-poly)
-		local trunkH = 4.5 * scale
-		trunk(trunkH + 2 * scale, 1.2 * scale, Color3.fromRGB(92, 64, 42))
+		-- ель: три гранёных конуса друг над другом, хвоя твёрдая
+		local trunkColor = Color3.fromRGB(92, 64, 42)
+		trunk(6.5 * scale, 1.2 * scale, trunkColor)
+		rootFlare(1.2 * scale, trunkColor)
 		local turn = rng:NextNumber(0, math.pi)
 		local tiers = {
 			{ r = 5.2, y = 2.6, h = 6.5, c = tone(38, 98, 56) },
@@ -315,18 +329,25 @@ function Forest.makeTree(cf, scale, rng)
 		}
 		for i, t in tiers do
 			local base = (cf * CFrame.new(0, t.y * scale, 0)).Position
-			Geometry.cone(model, base, t.r * scale, t.h * scale, 6, t.c, Enum.Material.SmoothPlastic, turn + i * 0.4)
+			Geometry.cone(model, base, t.r * scale, t.h * scale, 6, t.c, Enum.Material.SmoothPlastic, turn + i * 0.4, true)
 		end
 	elseif kind < 0.85 then
-		-- лиственное: прямой ствол и крона из трёх крупных шаров
+		-- лиственное: крона из нескольких гранёных блоков разного размера и оттенка
 		local h = 6 * scale
-		trunk(h + 1, 1.5 * scale, Color3.fromRGB(104, 74, 48))
-		local y = h + 2.2 * scale
-		sphere(7.4 * scale, CFrame.new(0, y, 0), tone(78, 150, 60))
-		sphere(5.4 * scale, CFrame.new(2.6 * scale, y - 1.0 * scale, 0.8 * scale), tone(70, 140, 56))
-		sphere(5.0 * scale, CFrame.new(-2.2 * scale, y - 0.6 * scale, -1.4 * scale), tone(86, 160, 66))
+		local trunkColor = Color3.fromRGB(104, 74, 48)
+		trunk(h + 1, 1.5 * scale, trunkColor)
+		rootFlare(1.5 * scale, trunkColor)
+		local y = h + 2.4 * scale
+		chunk(Vector3.new(6.2, 5.2, 6.2) * scale, Vector3.new(0, y, 0), tone(76, 146, 58))
+		for i = 1, 5 do
+			local a = i / 5 * math.pi * 2 + rng:NextNumber(-0.4, 0.4)
+			local up = rng:NextNumber(-0.7, 1.3)
+			local off = Vector3.new(math.cos(a) * 2.6, up, math.sin(a) * 2.6) * scale
+			local d = rng:NextNumber(3.4, 4.6) * scale
+			chunk(Vector3.new(d, d * 0.85, d), Vector3.new(0, y, 0) + off, tone(66 + math.floor(up * 8), 136 + math.floor(up * 10), 52))
+		end
 	else
-		-- берёза: светлый ствол с тёмными полосками, лёгкая вытянутая крона
+		-- берёза: светлый ствол с тёмными полосками и лёгкая гранёная крона
 		local h = 8 * scale
 		trunk(h + 1, 0.9 * scale, Color3.fromRGB(238, 236, 228))
 		for k = 1, 3 do
@@ -340,32 +361,34 @@ function Forest.makeTree(cf, scale, rng)
 			)
 			mark.Transparency = 0.2
 		end
-		sphere(5.2 * scale, CFrame.new(0, h + 1.2 * scale, 0), tone(130, 186, 78))
-		sphere(4.0 * scale, CFrame.new(0.6 * scale, h + 3.6 * scale, -0.4 * scale), tone(140, 196, 84))
+		chunk(Vector3.new(4.4, 4.0, 4.4) * scale, Vector3.new(0, h + 1.4 * scale, 0), tone(128, 184, 76))
+		chunk(Vector3.new(3.4, 3.2, 3.4) * scale, Vector3.new(0.7 * scale, h + 3.6 * scale, -0.3 * scale), tone(140, 196, 84))
+		chunk(Vector3.new(2.8, 2.6, 2.8) * scale, Vector3.new(-1.2 * scale, h + 2.4 * scale, 0.8 * scale), tone(120, 176, 72))
 	end
 
 	return model
 end
 
--- Камень: один-три шара (у шара честная круглая коллизия — можно подойти вплотную)
+-- Камень: один-три гранёных блока под разными углами (low-poly валун)
 function Forest.makeRock(cf, size, rng)
 	local model = Instance.new("Model")
 	model.Name = "Rock"
-	local g = rng:NextInteger(110, 134)
+	local g = rng:NextInteger(104, 130)
 	local base = Color3.fromRGB(g, g, g + 6)
-	local count = size > 6 and 3 or rng:NextInteger(1, 2)
+	local count = size > 5 and 3 or rng:NextInteger(1, 2)
 	for i = 1, count do
 		local d = size * (i == 1 and 1 or rng:NextNumber(0.45, 0.7))
 		local off = Vector3.zero
 		if i > 1 then
-			off = Vector3.new(rng:NextNumber(-0.5, 0.5) * size, -d * 0.1, rng:NextNumber(-0.5, 0.5) * size)
+			off = Vector3.new(rng:NextNumber(-0.5, 0.5) * size, -d * 0.05, rng:NextNumber(-0.5, 0.5) * size)
 		end
 		local p = Instance.new("Part")
 		p.Name = "Stone"
-		p.Shape = Enum.PartType.Ball
-		p.Size = Vector3.one * d
-		p.CFrame = cf * CFrame.new(off + Vector3.new(0, d * 0.22, 0))
-		p.Color = base:Lerp(Color3.new(1, 1, 1), rng:NextNumber(0, 0.08))
+		p.Size = Vector3.new(d, d * rng:NextNumber(0.6, 0.85), d * rng:NextNumber(0.8, 1.15))
+		p.CFrame = cf
+			* CFrame.new(off + Vector3.new(0, d * 0.18, 0))
+			* CFrame.Angles(rng:NextNumber(-0.5, 0.5), rng:NextNumber(0, math.pi * 2), rng:NextNumber(-0.5, 0.5))
+		p.Color = base:Lerp(Color3.new(1, 1, 1), rng:NextNumber(0, 0.1))
 		p.Material = Enum.Material.SmoothPlastic
 		setPart(p, true)
 		p.Parent = model

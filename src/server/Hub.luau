@@ -114,8 +114,10 @@ local function buildTerrain()
 	terrain:FillBlock(CFrame.new(0, -2, ROAD_Z - 15), Vector3.new(ROAD_HALF * 2, 4, 6), Enum.Material.Pavement)
 
 	-- лобби: кольцевая дорожка, клумба, дорожки, площадка у кругов, площадка у спавна
+	-- газон внутри стены — настоящая трава с травинками
+	terrain:FillCylinder(CFrame.new(0, -2, 0), 4, WALL_R - 1, Enum.Material.Grass)
 	terrain:FillCylinder(CFrame.new(FOUNTAIN + Vector3.new(0, -2, 0)), 4, 27, Enum.Material.Pavement)
-	terrain:FillCylinder(CFrame.new(FOUNTAIN + Vector3.new(0, -2, 0)), 4, 21, Enum.Material.LeafyGrass)
+	terrain:FillCylinder(CFrame.new(FOUNTAIN + Vector3.new(0, -2, 0)), 4, 21, Enum.Material.Grass)
 	terrain:FillBlock(CFrame.new(0, -2, (SPAWN.Z + FOUNTAIN.Z) / 2), Vector3.new(8, 4, SPAWN.Z - FOUNTAIN.Z), Enum.Material.Pavement)
 	terrain:FillBlock(CFrame.new(0, -2, FOUNTAIN.Z), Vector3.new(118, 4, 7), Enum.Material.Pavement)
 	terrain:FillBlock(CFrame.new(0, -2, (FOUNTAIN.Z + PAD_Z) / 2), Vector3.new(8, 4, FOUNTAIN.Z - PAD_Z), Enum.Material.Pavement)
@@ -128,6 +130,7 @@ local function buildTerrain()
 	terrain:FillCylinder(CFrame.new(FOUNTAIN + Vector3.new(0, -2, 0)), 4, 15, Enum.Material.Concrete)
 
 	terrain:SetMaterialColor(Enum.Material.LeafyGrass, Color3.fromRGB(96, 158, 66))
+	terrain:SetMaterialColor(Enum.Material.Grass, Color3.fromRGB(92, 156, 62))
 	terrain:SetMaterialColor(Enum.Material.Pavement, Color3.fromRGB(186, 180, 170))
 	terrain:SetMaterialColor(Enum.Material.Concrete, Color3.fromRGB(214, 210, 202))
 	terrain:SetMaterialColor(Enum.Material.Asphalt, Color3.fromRGB(52, 52, 56))
@@ -312,14 +315,25 @@ local function buildGreenery(folder, houseSpots)
 		Color3.fromRGB(255, 150, 60),
 	}
 
+	-- куст: пара повёрнутых гранёных блоков (не шар)
 	local function bush(pos, d)
 		local g = rng:NextInteger(0, 25)
-		local b = mk(f, Enum.PartType.Block, Vector3.new(d, d * 0.75, d), CFrame.new(pos + Vector3.new(0, d * 0.32, 0)), Color3.fromRGB(52 + g, 112 + g, 50), Enum.Material.LeafyGrass)
-		local mesh = Instance.new("SpecialMesh")
-		mesh.MeshType = Enum.MeshType.Sphere
-		mesh.Parent = b
-		noCollide(b)
-		return b
+		local first
+		for k = 1, 2 do
+			local size = d * (k == 1 and 1 or 0.7)
+			local off = k == 1 and Vector3.zero or Vector3.new(rng:NextNumber(-0.4, 0.4) * d, 0, rng:NextNumber(-0.4, 0.4) * d)
+			local b = mk(
+				f,
+				Enum.PartType.Block,
+				Vector3.new(size, size * 0.7, size),
+				CFrame.new(pos + off + Vector3.new(0, size * 0.3, 0)) * CFrame.Angles(rng:NextNumber(-0.4, 0.4), rng:NextNumber(0, PI2), rng:NextNumber(-0.4, 0.4)),
+				Color3.fromRGB(52 + g + k * 6, 112 + g + k * 8, 50),
+				Enum.Material.SmoothPlastic
+			)
+			noCollide(b)
+			first = first or b
+		end
+		return first
 	end
 	local function flower(pos)
 		local fl = ball(f, 0.6, pos + Vector3.new(0, 0.35, 0), flowerColors[rng:NextInteger(1, #flowerColors)], Enum.Material.SmoothPlastic)
@@ -353,11 +367,11 @@ local function buildGreenery(folder, houseSpots)
 
 	-- деревья на газонах внутри лобби
 	local placed = 0
-	for _ = 1, 200 do
-		if placed >= 6 then
+	for _ = 1, 400 do
+		if placed >= 14 then
 			break
 		end
-		local pos = polar(rng:NextNumber(48, 56), rng:NextNumber(0, PI2))
+		local pos = polar(rng:NextNumber(38, 57), rng:NextNumber(0, PI2))
 		if not onPath(pos.X, pos.Z) then
 			tree(pos.X, pos.Z, rng:NextNumber(0.9, 1.3))
 			for _ = 1, 5 do

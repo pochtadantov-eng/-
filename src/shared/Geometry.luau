@@ -50,7 +50,7 @@ function Geometry.triangle(parent, a, b, c, color, material, thickness, collide)
 end
 
 -- Гранёный конус: основание в точке base (центр), вершина над ним
-function Geometry.cone(parent, base, radius, height, sides, color, material, turn)
+function Geometry.cone(parent, base, radius, height, sides, color, material, turn, collide)
 	turn = turn or 0
 	local apex = base + Vector3.new(0, height, 0)
 	local ring = table.create(sides)
@@ -63,7 +63,7 @@ function Geometry.cone(parent, base, radius, height, sides, color, material, tur
 		local p2 = ring[i % sides + 1]
 		-- грани чуть разного оттенка — так low-poly выглядит объёмнее
 		local tint = (i % 2 == 0) and color or color:Lerp(Color3.new(0, 0, 0), 0.08)
-		Geometry.triangle(parent, apex, p1, p2, tint, material, 0.15, false)
+		Geometry.triangle(parent, apex, p1, p2, tint, material, 0.3, collide == true)
 	end
 end
 
