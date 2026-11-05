@@ -19,7 +19,7 @@ Config.FOREST_SIZE = 512 -- сторона квадрата, должна дел
 Config.STAGE_ORIGIN = Vector3.new(-3000, 0, 0) -- сцена с поездкой на машине
 
 -- Поездка
-Config.DRIVE_SECONDS = 12
+Config.DRIVE_SECONDS = 19 -- столько длится диалог лесника
 Config.DRIVE_DISTANCE = 420
 
 -- Хаб

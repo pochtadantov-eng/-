@@ -566,9 +566,53 @@ local subtitleLabel = text(gui, "", UDim2.new(0.5, -300, 1, -130), UDim2.fromOff
 subtitleLabel.Visible = false
 subtitleLabel.ZIndex = 50
 
+-- Кинокамера катсцены: следует за невидимой точкой (внутри фургона или снаружи)
+local cutCamConn
+local cutCamToken = 0
+local function setCutsceneCamera(stageName, partName)
+	cutCamToken += 1
+	local mine = cutCamToken
+	if cutCamConn then
+		cutCamConn:Disconnect()
+		cutCamConn = nil
+	end
+	local cam = workspace.CurrentCamera
+	if not stageName then
+		cam.CameraType = Enum.CameraType.Custom
+		local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+		if hum then
+			cam.CameraSubject = hum
+		end
+		return
+	end
+	task.spawn(function()
+		local part
+		local t0 = os.clock()
+		while not part and os.clock() - t0 < 5 do
+			local stage = workspace:FindFirstChild(stageName)
+			part = stage and stage:FindFirstChild(partName, true)
+			if not part then
+				task.wait(0.1)
+			end
+		end
+		if not part or mine ~= cutCamToken then
+			return
+		end
+		cam.CameraType = Enum.CameraType.Scriptable
+		cam.CFrame = part.CFrame
+		cutCamConn = RunService.RenderStepped:Connect(function(dt)
+			if part.Parent then
+				cam.CFrame = cam.CFrame:Lerp(part.CFrame, math.clamp(dt * 10, 0, 1))
+			end
+		end)
+	end)
+end
+
 local subtitleToken = 0
 Remotes.CutsceneFx.OnClientEvent:Connect(function(kind, a, b)
-	if kind == "Fade" then
+	if kind == "Camera" then
+		setCutsceneCamera(a, b)
+	elseif kind == "Fade" then
 		TweenService:Create(fadeFrame, TweenInfo.new(b or 0.5), { BackgroundTransparency = a and 0 or 1 }):Play()
 	elseif kind == "Loading" then
 		loadingLabel.Visible = a == true

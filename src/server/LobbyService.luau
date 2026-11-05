@@ -239,6 +239,7 @@ local function begin(p)
 			for _, m in roster do
 				if m.Parent == Players then
 					Remotes.CutsceneFx:FireClient(m, "Loading", false)
+					Remotes.CutsceneFx:FireClient(m, "Camera", nil, nil)
 					Remotes.CutsceneFx:FireClient(m, "Fade", false, 0.5)
 					task.spawn(function()
 						m:LoadCharacter()
