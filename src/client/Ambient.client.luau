@@ -93,12 +93,12 @@ dustPart.CanCollide = false
 dustPart.CanQuery = false
 dustPart.CanTouch = false
 dustPart.Transparency = 1
-dustPart.Size = Vector3.new(26, 14, 26)
+dustPart.Size = Vector3.new(18, 10, 18)
 dustPart.Parent = Workspace
 local dust = Instance.new("ParticleEmitter")
 dust.Shape = Enum.ParticleEmitterShape.Box
 dust.ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume
-dust.Rate = 45
+dust.Rate = 110
 dust.Lifetime = NumberRange.new(4, 7)
 dust.Speed = NumberRange.new(0.1, 0.5)
 dust.SpreadAngle = Vector2.new(180, 180)
@@ -107,13 +107,13 @@ dust.Drag = 1
 dust.RotSpeed = NumberRange.new(-30, 30)
 dust.Size = NumberSequence.new({
 	NumberSequenceKeypoint.new(0, 0),
-	NumberSequenceKeypoint.new(0.2, 0.09),
-	NumberSequenceKeypoint.new(0.8, 0.07),
+	NumberSequenceKeypoint.new(0.2, 0.16),
+	NumberSequenceKeypoint.new(0.8, 0.12),
 	NumberSequenceKeypoint.new(1, 0),
 })
-dust.Transparency = NumberSequence.new(0.25)
+dust.Transparency = NumberSequence.new(0.1)
 dust.Color = ColorSequence.new(Color3.fromRGB(255, 240, 210))
-dust.LightEmission = 0.6
+dust.LightEmission = 0.9
 dust.LightInfluence = 0.2
 dust.Enabled = false
 dust.Parent = dustPart
@@ -196,7 +196,7 @@ for i = 1, 14 do
 		wingOutL = bodyPart(model, Enum.PartType.Block, Vector3.new(0.85, 0.04, 0.4), c[2]),
 		wingOutR = bodyPart(model, Enum.PartType.Block, Vector3.new(0.85, 0.04, 0.4), c[2]),
 		-- половина кружит над лобби, половина над лесом (не за игроком)
-		home = i % 2 == 0 and Vector3.new(0, HUB_Y, -10) or (Config.FOREST_ORIGIN + Vector3.new(0, 20, 0)),
+		home = Vector3.new(0, HUB_Y, -10),
 		radius = rng:NextNumber(25, 70),
 		height = rng:NextNumber(30, 55),
 		speed = rng:NextNumber(0.25, 0.45) * (rng:NextNumber() < 0.5 and -1 or 1),

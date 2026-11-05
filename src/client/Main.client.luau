@@ -562,6 +562,45 @@ local loadingLabel = text(gui, "Загрузка леса…", UDim2.new(0.5, -2
 loadingLabel.Visible = false
 loadingLabel.ZIndex = 101
 
+-- Окно диалога: имя говорящего и текст, который печатается по буквам
+local dialog = frame(gui, UDim2.fromOffset(680, 130), Vector2.new(0.5, 1), UDim2.new(0.5, 0, 1, -36), Color3.fromRGB(18, 18, 24))
+dialog.Visible = false
+dialog.ZIndex = 55
+dialog.BackgroundTransparency = 0.1
+local dialogName = text(dialog, "", UDim2.fromOffset(22, -22), UDim2.fromOffset(240, 40), 32, YELLOW)
+dialogName.TextXAlignment = Enum.TextXAlignment.Left
+dialogName.ZIndex = 57
+local dialogText = text(dialog, "", UDim2.fromOffset(24, 28), UDim2.new(1, -48, 1, -40), 32)
+dialogText.TextXAlignment = Enum.TextXAlignment.Left
+dialogText.TextYAlignment = Enum.TextYAlignment.Top
+dialogText.TextWrapped = true
+dialogText.ZIndex = 57
+local dialogToken = 0
+local function showDialog(name, line, duration)
+	dialogToken += 1
+	local mine = dialogToken
+	dialogName.Text = tostring(name)
+	dialogText.Text = tostring(line)
+	dialogText.MaxVisibleGraphemes = 0
+	dialog.Visible = true
+	task.spawn(function()
+		local total = utf8.len(dialogText.Text) or #dialogText.Text
+		for i = 1, total do
+			if mine ~= dialogToken then
+				return
+			end
+			dialogText.MaxVisibleGraphemes = i
+			task.wait(0.035)
+		end
+		dialogText.MaxVisibleGraphemes = -1
+	end)
+	task.delay(duration or 3, function()
+		if mine == dialogToken then
+			dialog.Visible = false
+		end
+	end)
+end
+
 local subtitleLabel = text(gui, "", UDim2.new(0.5, -300, 1, -130), UDim2.fromOffset(600, 60), 36)
 subtitleLabel.Visible = false
 subtitleLabel.ZIndex = 50
@@ -621,7 +660,7 @@ local walkToken = 0
 local savedWalkSpeed
 
 local subtitleToken = 0
-Remotes.CutsceneFx.OnClientEvent:Connect(function(kind, a, b)
+Remotes.CutsceneFx.OnClientEvent:Connect(function(kind, a, b, ...)
 	if kind == "Camera" then
 		setCutsceneCamera(a, b)
 	elseif kind == "FirstPerson" then
@@ -693,6 +732,14 @@ Remotes.CutsceneFx.OnClientEvent:Connect(function(kind, a, b)
 				conn:Disconnect()
 			end
 		end)
+	elseif kind == "Dialog" then
+		showDialog(a, b, select(1, ...))
+	elseif kind == "Stand" then
+		local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+		if hum then
+			hum.Sit = false
+			hum:ChangeState(Enum.HumanoidStateType.GettingUp)
+		end
 	elseif kind == "Fade" then
 		TweenService:Create(fadeFrame, TweenInfo.new(b or 0.5), { BackgroundTransparency = a and 0 or 1 }):Play()
 	elseif kind == "Loading" then

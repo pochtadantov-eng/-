@@ -98,16 +98,20 @@ local function newPart(parent, name, size, cf, color, material)
 	return p
 end
 
-local function buildStage(stage, origin, padId)
-	local rng = Random.new(padId * 77)
-	newPart(stage, "Ground", Vector3.new(1000, 1, 170), CFrame.new(origin + Vector3.new(300, -0.5, 0)), Color3.fromRGB(70, 112, 56), Enum.Material.SmoothPlastic)
+-- Карта, на которую приезжает фургон, и есть игровая карта: тёмный густой лес,
+-- тропинка вглубь, в конце тропинки лагерь с костром. Края закрыты невидимыми стенами.
+local function buildStage(stage, origin, seed)
+	local rng = Random.new(seed * 77 + 1)
+	newPart(stage, "Ground", Vector3.new(1000, 1, 170), CFrame.new(origin + Vector3.new(300, -0.5, 0)), Color3.fromRGB(62, 100, 50), Enum.Material.SmoothPlastic)
 	newPart(stage, "Road", Vector3.new(700, 0.2, 22), CFrame.new(origin + Vector3.new(300, 0.1, 0)), Color3.fromRGB(70, 68, 66), Enum.Material.SmoothPlastic)
 
-	-- тропинка в густой лес от места остановки (по ней выходят игроки)
 	local stop = Config.DRIVE_DISTANCE
+	local minX, maxX = stop - 170, stop + 150
+
+	-- тропинка от дороги вглубь леса
 	local pathPts = {}
 	local px, pz = stop + REAR - 9, -11
-	for _ = 0, 16 do
+	for _ = 0, 14 do
 		table.insert(pathPts, Vector2.new(px, pz))
 		px += rng:NextNumber(-2.2, 2.2)
 		pz -= 5
@@ -115,34 +119,110 @@ local function buildStage(stage, origin, padId)
 	for i = 1, #pathPts - 1 do
 		local p1 = origin + Vector3.new(pathPts[i].X, 0.1, pathPts[i].Y)
 		local p2 = origin + Vector3.new(pathPts[i + 1].X, 0.1, pathPts[i + 1].Y)
-		local seg = newPart(stage, "Path", Vector3.new(4.4, 0.1, (p2 - p1).Magnitude + 1.4), CFrame.lookAt((p1 + p2) / 2, p2), Color3.fromRGB(104, 80, 56), Enum.Material.SmoothPlastic)
+		local seg = newPart(stage, "Path", Vector3.new(4.4, 0.1, (p2 - p1).Magnitude + 1.4), CFrame.lookAt((p1 + p2) / 2, p2), Color3.fromRGB(100, 78, 54), Enum.Material.SmoothPlastic)
 		seg.CanQuery = false
 	end
-	local function nearPath(x, z)
+	local campPos = pathPts[#pathPts]
+
+	local function blocked(x, z)
 		for _, p in pathPts do
 			local dx, dz = x - p.X, z - p.Y
 			if dx * dx + dz * dz < 40 then
 				return true
 			end
 		end
-		return false
+		local cx, cz = x - campPos.X, z - campPos.Y
+		if cx * cx + cz * cz < 15 * 15 then
+			return true
+		end
+		return math.abs(z) < 14 -- дорога и обочины
 	end
 
 	local function tree(x, z)
-		if nearPath(x, z) then
+		if blocked(x, z) then
 			return
 		end
 		local cf = CFrame.new(origin + Vector3.new(x, 0, z)) * CFrame.Angles(0, rng:NextNumber(0, math.pi * 2), 0)
-		Forest.makeTree(cf, rng:NextNumber(1.0, 1.7), rng).Parent = stage
+		Forest.makeTree(cf, rng:NextNumber(1.0, 1.8), rng).Parent = stage
 	end
+	-- вдоль всей дороги
 	for side = -1, 1, 2 do
-		for _ = 1, 40 do
-			tree(rng:NextNumber(-40, 640), side * rng:NextNumber(18, 70))
+		for _ = 1, 30 do
+			tree(rng:NextNumber(-40, minX), side * rng:NextNumber(16, 75))
 		end
 	end
-	-- густой лес вокруг тропинки
-	for _ = 1, 90 do
-		tree(stop + rng:NextNumber(-80, 40), -rng:NextNumber(15, 85))
+	-- густой лес на игровой части
+	for i = 1, 240 do
+		tree(rng:NextNumber(minX + 4, maxX - 4), (i % 2 == 0 and 1 or -1) * rng:NextNumber(15, 82))
+		if i % 40 == 0 then
+			task.wait()
+		end
+	end
+	-- камни и кусты
+	for _ = 1, 40 do
+		local x, z = rng:NextNumber(minX, maxX), (rng:NextNumber() < 0.5 and 1 or -1) * rng:NextNumber(15, 82)
+		if not blocked(x, z) then
+			Forest.makeRock(CFrame.new(origin + Vector3.new(x, 0, z)), rng:NextNumber(2, 6), rng).Parent = stage
+		end
+	end
+	for _ = 1, 70 do
+		local x, z = rng:NextNumber(minX, maxX), (rng:NextNumber() < 0.5 and 1 or -1) * rng:NextNumber(14, 82)
+		if not blocked(x, z) then
+			local d = rng:NextNumber(2.5, 4.5)
+			local g = rng:NextInteger(0, 20)
+			local bush = newPart(stage, "Bush", Vector3.one * d, CFrame.new(origin + Vector3.new(x, d * 0.3, z)), Color3.fromRGB(40 + g, 86 + g, 44), Enum.Material.SmoothPlastic)
+			bush.Shape = Enum.PartType.Ball
+			bush.CanCollide = false
+		end
+	end
+
+	-- лагерь в конце тропинки: костёр, камни, брёвна, палатка
+	local C = origin + Vector3.new(campPos.X, 0, campPos.Y)
+	for i = 1, 10 do
+		local a = i / 10 * math.pi * 2
+		local st = newPart(stage, "Stone", Vector3.one * 1.3, CFrame.new(C + Vector3.new(math.cos(a) * 2.4, 0.4, math.sin(a) * 2.4)), Color3.fromRGB(112, 112, 116), Enum.Material.SmoothPlastic)
+		st.Shape = Enum.PartType.Ball
+	end
+	for i = 0, 2 do
+		local log = newPart(stage, "FireLog", Vector3.new(4.4, 0.7, 0.7), CFrame.new(C + Vector3.new(0, 0.6, 0)) * CFrame.Angles(0, math.rad(60 * i), math.rad(14)), Color3.fromRGB(60, 40, 28), Enum.Material.Wood)
+		log.Shape = Enum.PartType.Cylinder
+		log.CanCollide = false
+	end
+	local firePart = newPart(stage, "Campfire", Vector3.one, CFrame.new(C + Vector3.new(0, 1.2, 0)), Color3.new(), Enum.Material.SmoothPlastic)
+	firePart.Transparency = 1
+	firePart.CanCollide = false
+	local fire = Instance.new("Fire")
+	fire.Size = 6
+	fire.Heat = 10
+	fire.Color = Color3.fromRGB(255, 160, 50)
+	fire.SecondaryColor = Color3.fromRGB(220, 60, 20)
+	fire.Parent = firePart
+	local fireLight = Instance.new("PointLight")
+	fireLight.Range = 34
+	fireLight.Brightness = 2.4
+	fireLight.Color = Color3.fromRGB(255, 150, 70)
+	fireLight.Parent = firePart
+	for _, a in { 0.5, 2.6, 4.4 } do
+		local seat = newPart(stage, "LogSeat", Vector3.new(5, 1.1, 1.1), CFrame.new(C + Vector3.new(math.cos(a) * 6, 0.55, math.sin(a) * 6)) * CFrame.Angles(0, -(a + math.pi / 2), 0), Color3.fromRGB(110, 78, 50), Enum.Material.Wood)
+		seat.Shape = Enum.PartType.Cylinder
+	end
+	local tentPos = C + Vector3.new(-10, 0, -4)
+	local tcf = CFrame.lookAt(tentPos, Vector3.new(C.X, 0, C.Z))
+	newPart(stage, "TentFloor", Vector3.new(7, 0.2, 8), tcf * CFrame.new(0, 0.1, 0), Color3.fromRGB(55, 50, 45), Enum.Material.Fabric)
+	for _, side in { 1, -1 } do
+		newPart(stage, "Tent", Vector3.new(5.44, 0.3, 8.4), tcf * CFrame.new(side * 1.75, 2.1, 0) * CFrame.Angles(0, 0, -side * math.rad(50)), Color3.fromRGB(205, 115, 50), Enum.Material.Fabric)
+	end
+
+	-- невидимые стены вокруг игровой части
+	for _, spec in {
+		{ Vector3.new((minX + maxX) / 2, 40, 84), Vector3.new(maxX - minX, 80, 2) },
+		{ Vector3.new((minX + maxX) / 2, 40, -84), Vector3.new(maxX - minX, 80, 2) },
+		{ Vector3.new(minX, 40, 0), Vector3.new(2, 80, 170) },
+		{ Vector3.new(maxX, 40, 0), Vector3.new(2, 80, 170) },
+	} do
+		local w = newPart(stage, "Bound", spec[2], CFrame.new(origin + spec[1]), Color3.new(), Enum.Material.SmoothPlastic)
+		w.Transparency = 1
+		w.CanQuery = false
 	end
 end
 
@@ -287,6 +367,7 @@ local function buildTruck(stage, baseCF, seatCount)
 			green,
 			Enum.Material.SmoothPlastic
 		)
+		d:FindFirstChildOfClass("WeldConstraint").Name = "BaseWeld"
 		local handle = newPart(model, "DoorHandle", Vector3.new(0.3, 1.3, 0.3), baseCF * CFrame.new(REAR - 0.5, FLOOR_TOP + 4, side * 0.8), Color3.fromRGB(40, 40, 44), Enum.Material.Metal)
 		handle.Anchored = false
 		handle.CanCollide = false
@@ -407,6 +488,8 @@ local function spawnForester(stage, truck)
 	local hum = rig:FindFirstChildOfClass("Humanoid")
 	hum.DisplayName = "Лесник"
 	hum.WalkSpeed = 9
+	hum:SetStateEnabled(Enum.HumanoidStateType.FallingDown, false)
+	hum:SetStateEnabled(Enum.HumanoidStateType.Ragdoll, false)
 	rig.Parent = stage
 
 	-- стоит у дверей лицом к ребятам (к кабине)
@@ -480,25 +563,32 @@ local function spawnForester(stage, truck)
 	}
 end
 
-local function walkTo(fr, pos, timeout)
-	if fr.walk then
-		fr.walk:Play(0.2)
+-- Лесник ходит «по рельсам»: корень закреплён и плавно едет к точке, ноги шагают
+-- анимацией. Так он никогда не спотыкается и не падает. target — позиция корня.
+local function walkTo(fr, target, speed)
+	local root = fr.root
+	root.Anchored = true
+	local from = root.Position
+	local dist = (target - from).Magnitude
+	if dist < 0.05 then
+		return
 	end
-	fr.hum:MoveTo(pos)
+	local flat = Vector3.new(target.X - from.X, 0, target.Z - from.Z)
+	local look = flat.Magnitude > 0.05 and flat.Unit or root.CFrame.LookVector
+	local startRot = root.CFrame.Rotation
+	local endRot = CFrame.lookAt(Vector3.zero, look).Rotation
+	if fr.walk then
+		fr.walk:Play(0.15)
+	end
+	local T = dist / (speed or 7)
 	local t0 = os.clock()
-	while os.clock() - t0 < timeout do
-		local root = fr.hum.RootPart
-		if not root then
-			break
-		end
-		local dx, dz = root.Position.X - pos.X, root.Position.Z - pos.Z
-		if dx * dx + dz * dz < 1.2 then
-			break
-		end
-		task.wait(0.05)
-	end
+	repeat
+		local a = math.clamp((os.clock() - t0) / T, 0, 1)
+		root.CFrame = CFrame.new(from:Lerp(target, a)) * startRot:Lerp(endRot, math.clamp(a * 4, 0, 1))
+		RunService.Heartbeat:Wait()
+	until a >= 1
 	if fr.walk then
-		fr.walk:Stop(0.25)
+		fr.walk:Stop(0.2)
 	end
 end
 
@@ -509,14 +599,13 @@ local function turnTo(fr, dir, duration)
 		return
 	end
 	local root = fr.root
-	local pos = root.Position
 	root.Anchored = true
+	local pos = root.Position
 	local tw = TweenService:Create(root, TweenInfo.new(duration, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut), {
 		CFrame = CFrame.lookAt(pos, pos + flat.Unit),
 	})
 	tw:Play()
 	tw.Completed:Wait()
-	root.Anchored = false
 end
 
 -- поворот головы (смотрит то на одну лавку, то на другую)
@@ -531,18 +620,24 @@ local function lookAround(fr, yaw)
 	}):Play()
 end
 
-local function point(fr)
+local shoulderBase = {}
+local function point(fr, up)
 	if not fr or not fr.shoulder then
 		return
 	end
+	shoulderBase[fr.shoulder] = shoulderBase[fr.shoulder] or fr.shoulder.C0
 	TweenService:Create(fr.shoulder, TweenInfo.new(0.6, Enum.EasingStyle.Back), {
-		C0 = fr.shoulder.C0 * CFrame.Angles(math.rad(88), 0, 0),
+		C0 = up == false and shoulderBase[fr.shoulder] or shoulderBase[fr.shoulder] * CFrame.Angles(math.rad(88), 0, 0),
 	}):Play()
 end
 
 local function say(forester, players, text, duration)
 	duration = duration or 3
-	subtitle(players, "Лесник: " .. text, duration)
+	for _, pl in players do
+		if pl.Parent == Players then
+			Remotes.CutsceneFx:FireClient(pl, "Dialog", "Лесник", text, duration)
+		end
+	end
 	local head = forester and forester.rig:FindFirstChild("Head")
 	if head then
 		local gui = Instance.new("BillboardGui")
@@ -576,8 +671,8 @@ local function say(forester, players, text, duration)
 	end
 end
 
--- открыть одну створку (side = 1 правая, -1 левая)
-local function openDoor(truck, side, baseCF, duration)
+-- повернуть створку (side = 1 правая, -1 левая) от угла a0 до a1 (0 = закрыта, 1 = открыта)
+local function swingDoor(truck, side, baseCF, a0, a1, duration)
 	local door
 	for _, d in truck.doors do
 		if d.side == side then
@@ -587,7 +682,7 @@ local function openDoor(truck, side, baseCF, duration)
 	if not door then
 		return
 	end
-	local w = door.part:FindFirstChildOfClass("WeldConstraint")
+	local w = door.part:FindFirstChild("BaseWeld")
 	if w then
 		w:Destroy()
 	end
@@ -595,11 +690,20 @@ local function openDoor(truck, side, baseCF, duration)
 	local t0 = os.clock()
 	repeat
 		local a = math.clamp((os.clock() - t0) / duration, 0, 1)
-		local e = TweenService:GetValue(a, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+		local e = a0 + (a1 - a0) * TweenService:GetValue(a, Enum.EasingStyle.Quad, Enum.EasingDirection.InOut)
 		local hinge = baseCF * CFrame.new(REAR - 0.2, FLOOR_TOP + DOOR_H / 2, side * HALF_W)
 		door.part.CFrame = hinge * CFrame.Angles(0, side * math.rad(95) * e, 0) * CFrame.new(0, 0, -side * DOOR_LEN / 2)
 		RunService.Heartbeat:Wait()
 	until a >= 1
+	if a1 == 0 then
+		-- закрыта: снова приваривается к фургону и едет вместе с ним
+		door.part.Anchored = false
+		local nw = Instance.new("WeldConstraint")
+		nw.Name = "BaseWeld"
+		nw.Part0 = truck.base
+		nw.Part1 = door.part
+		nw.Parent = door.part
+	end
 end
 
 local function seatRider(r)
@@ -612,18 +716,43 @@ local function seatRider(r)
 	r.seat:Sit(hum)
 end
 
-function Cutscene.run(padId, players, mapId)
-	local origin = Config.STAGE_ORIGIN + Vector3.new(0, 0, padId * 200)
+local runCounter = 0
+local building = {} -- [padId] = stage, пока идёт катсцена (для уборки при ошибке)
 
-	-- 1. Затемнение и переход на сцену
+-- Карта живёт, пока на ней есть хоть кто-то из приехавших; потом удаляется
+local function watchStage(stage, riders, origin)
+	task.spawn(function()
+		while stage.Parent do
+			task.wait(3)
+			local anyone = false
+			for _, r in riders do
+				local _, _, root = charParts(r.player)
+				if root and math.abs(root.Position.X - origin.X) < 900 and math.abs(root.Position.Z - origin.Z) < 150 then
+					anyone = true
+				end
+			end
+			if not anyone then
+				stage:Destroy()
+			end
+		end
+	end)
+end
+
+function Cutscene.run(padId, players, mapId)
+	runCounter += 1
+	local slot = runCounter % 12
+	local origin = Config.STAGE_ORIGIN + Vector3.new(0, 0, slot * 240)
+
+	-- 1. Затемнение и переход на карту
 	fade(players, true, 0.6)
 	task.wait(0.8)
 
 	local stage = Instance.new("Folder")
-	stage.Name = "Stage" .. padId
+	stage.Name = "Stage" .. runCounter
 	stage.Parent = Workspace
+	building[padId] = stage
 
-	buildStage(stage, origin, padId)
+	buildStage(stage, origin, runCounter)
 	local startCF = CFrame.new(origin)
 	local truck = buildTruck(stage, startCF, #players)
 	local forester = spawnForester(stage, truck)
@@ -641,19 +770,21 @@ function Cutscene.run(padId, players, mapId)
 			}
 			hum.JumpPower = 0
 			hum.JumpHeight = 0
-			hum:SetStateEnabled(Enum.HumanoidStateType.Jumping, false)
 			table.insert(riders, r)
 			seatRider(r)
 		end
 	end
 
 	task.wait(0.6)
-	local lookAt = forester and forester.rig:FindFirstChild("Head") and forester.rig.Head.Position or truck.base.CFrame:PointToWorldSpace(Vector3.new(FORESTER_X, FLOOR_TOP + 4.5, 0))
-	firstPerson(players, true, lookAt)
+	local function foresterHead()
+		local head = forester and forester.rig:FindFirstChild("Head")
+		return head and head.Position or truck.base.CFrame:PointToWorldSpace(Vector3.new(FORESTER_X, FLOOR_TOP + 4.5, 0))
+	end
+	firstPerson(players, true, foresterHead())
 	fade(players, false, 0.8)
 	task.wait(0.8)
 
-	-- 3. Едем; лесник говорит с ребятами
+	-- 3. Едем, фургон покачивает; лесник говорит с ребятами
 	local talkDone = false
 	task.spawn(function()
 		task.wait(1.5)
@@ -672,14 +803,9 @@ function Cutscene.run(padId, players, mapId)
 		local t = os.clock() - t0
 		local a = math.clamp(t / T, 0, 1)
 		local e = TweenService:GetValue(a, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut)
-		-- покачивание: сильнее на скорости, затихает к остановке
 		local k = 0.3 + 0.7 * math.sin(a * math.pi)
 		local sway = CFrame.new(0, math.abs(math.sin(t * 3.1)) * 0.07 * k, 0)
-			* CFrame.Angles(
-				(math.sin(t * 2.3) * 0.02 + math.sin(t * 5.7) * 0.007) * k,
-				0,
-				math.sin(t * 1.7) * 0.012 * k
-			)
+			* CFrame.Angles((math.sin(t * 2.3) * 0.02 + math.sin(t * 5.7) * 0.007) * k, 0, math.sin(t * 1.7) * 0.012 * k)
 		truck.model:PivotTo((startCF + Vector3.new(Config.DRIVE_DISTANCE * e, 0, 0)) * sway)
 		for _, r in riders do
 			local _, hum = charParts(r.player)
@@ -691,139 +817,118 @@ function Cutscene.run(padId, players, mapId)
 	until a >= 1
 	truck.model:PivotTo(startCF + Vector3.new(Config.DRIVE_DISTANCE, 0, 0))
 
-	-- дослушиваем лесника
 	local waitTalk = os.clock()
 	while not talkDone and os.clock() - waitTalk < 10 do
 		task.wait(0.1)
 	end
 
-	-- 4. Лесник оборачивается, открывает одну дверь, выходит, открывает вторую, показывает на лес
+	-- 4. Лесник оборачивается, открывает одну дверь, выходит, открывает вторую, показывает в лес
 	task.wait(0.6)
 	local baseCF = truck.base.CFrame
-	local function at(x, z)
-		return baseCF:PointToWorldSpace(Vector3.new(x, 0, z))
+	local function onFloor(x, z)
+		return baseCF:PointToWorldSpace(Vector3.new(x, FLOOR_TOP + 3, z))
+	end
+	local function onGround(x, z)
+		return baseCF:PointToWorldSpace(Vector3.new(x, 3.2, z))
 	end
 	if forester then
 		forester.weld:Destroy()
-		pcall(function()
-			forester.root:SetNetworkOwner(nil)
-		end)
+		forester.root.Anchored = true
 		turnTo(forester, -baseCF.XVector, 0.9)
-		walkTo(forester, at(REAR + 1.3, -2.8), 4)
+		walkTo(forester, onFloor(REAR + 1.3, -2.8), 5)
 		turnTo(forester, -baseCF.XVector, 0.3)
 	end
-	openDoor(truck, -1, baseCF, 1.1)
-
+	swingDoor(truck, -1, baseCF, 0, 1, 1.1)
 	if forester then
-		walkTo(forester, at(REAR - 2.6, -2.8), 4)
+		walkTo(forester, onFloor(REAR - 0.3, -2.8), 5)
+		walkTo(forester, onGround(REAR - 2.6, -2.8), 4)
 		task.wait(0.3)
 		turnTo(forester, baseCF.XVector, 0.6)
 	end
-	openDoor(truck, 1, baseCF, 1.1)
+	swingDoor(truck, 1, baseCF, 0, 1, 1.1)
 	if forester then
-		walkTo(forester, at(REAR - 8.5, -2.8), 4)
-		walkTo(forester, at(REAR - 13, -7), 4)
+		walkTo(forester, onGround(REAR - 8.5, -2.8), 6)
+		walkTo(forester, onGround(REAR - 13, -7), 6)
 		turnTo(forester, -baseCF.ZVector, 0.6)
-		point(forester)
+		point(forester, true)
 	end
 	task.wait(0.4)
-	say(forester, players, "Выходим!", 2.6)
+	say(forester, players, "Выходим!", 2.4)
+	task.wait(2.4)
+
+	-- 5. Затемнение: игроки уже стоят снаружи у фургона, лесник — внутри у дверей
+	fade(players, true, 0.6)
+	task.wait(0.8)
+	if forester then
+		point(forester, false)
+		forester.root.CFrame = CFrame.lookAt(onFloor(REAR + 1.8, 0), onFloor(REAR - 5, 0))
+	end
+	for i, r in riders do
+		local char, hum, root = charParts(r.player)
+		if char then
+			local sw = r.seat:FindFirstChild("SeatWeld")
+			if sw then
+				sw:Destroy()
+			end
+			hum.Sit = false
+			Remotes.CutsceneFx:FireClient(r.player, "Stand")
+			local row = math.floor((i - 1) / 3)
+			local lane = ((i - 1) % 3 - 1) * 3.2
+			local pos = onGround(REAR - 10 - row * 3, lane)
+			char:PivotTo(CFrame.lookAt(pos, pos + baseCF.XVector))
+			root.AssemblyLinearVelocity = Vector3.zero
+		end
+	end
+	firstPerson(players, true, foresterHead())
+	task.wait(0.3)
+	fade(players, false, 0.8)
 	task.wait(1.2)
 
-	-- игроки сами встают и плавно выходят из фургона на тропинку (смотреть можно по сторонам)
-	local n = #riders
-	for i, r in riders do
-		local char, hum, root = charParts(r.player)
-		if char then
-			local sw = r.seat:FindFirstChild("SeatWeld")
-			if sw then
-				sw:Destroy()
-			end
-			hum.Sit = false
-			local sp = baseCF:PointToObjectSpace(r.seat.Position)
-			local lane = math.clamp((i - (n + 1) / 2) * 1.3, -3, 3)
-			local route = {
-				at(sp.X, lane * 0.4),
-				at(REAR + 1.2, lane),
-				at(REAR - 8, lane),
-				at(REAR - 9, -12 + lane * 0.5),
-				at(REAR - 9.5, -19 + lane * 0.5),
-			}
-			task.delay((i - 1) * 0.35, function()
-				if r.player.Parent == Players then
-					Remotes.CutsceneFx:FireClient(r.player, "AutoWalk", route, 7)
-				end
-			end)
-		end
-	end
-	task.wait(7.5)
+	-- 6. Лесник закрывает обе створки изнутри, фургон уезжает
+	swingDoor(truck, 1, baseCF, 1, 0, 1.0)
+	task.wait(0.2)
+	swingDoor(truck, -1, baseCF, 1, 0, 1.0)
+	task.wait(0.6)
 
-	-- 5. Затемнение и телепорт в лес
-	fade(players, true, 0.8)
-	task.wait(1.0)
-	for _, pl in players do
-		if pl.Parent == Players then
-			Remotes.CutsceneFx:FireClient(pl, "Loading", true)
+	local rel = forester and baseCF:ToObjectSpace(forester.root.CFrame)
+	local driveT = 6
+	local t1 = os.clock()
+	repeat
+		local t = os.clock() - t1
+		local a = math.clamp(t / driveT, 0, 1)
+		local e = TweenService:GetValue(a, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+		local sway = CFrame.Angles(math.sin(t * 2.6) * 0.015 * a, 0, 0)
+		local cf = (baseCF + baseCF.XVector * 260 * e) * sway
+		truck.model:PivotTo(cf)
+		if forester then
+			forester.root.CFrame = cf * rel
 		end
+		RunService.Heartbeat:Wait()
+	until a >= 1
+	truck.model:Destroy()
+	if forester then
+		forester.rig:Destroy()
 	end
 
-	Forest.waitUntilReady()
-	local spawns = Forest.spawnPoints(#riders)
-	for i, r in riders do
-		local char, hum, root = charParts(r.player)
-		if char then
-			local sw = r.seat:FindFirstChild("SeatWeld")
-			if sw then
-				sw:Destroy()
-			end
-			hum.Sit = false
-			hum:SetStateEnabled(Enum.HumanoidStateType.Jumping, true)
+	-- 7. Игра: обычная камера и управление
+	for _, r in riders do
+		local _, hum = charParts(r.player)
+		if hum then
 			hum.JumpPower = r.jumpPower
 			hum.JumpHeight = r.jumpHeight
-			char:PivotTo(spawns[i])
-			root.AssemblyLinearVelocity = Vector3.zero
-			root.Anchored = true -- держим на месте, пока клиент не загрузит землю
-			terrainReady[r.player] = nil
-			Remotes.CutsceneFx:FireClient(r.player, "WaitTerrain", spawns[i].Position)
 		end
 	end
-
-	local waitStart = os.clock()
-	while os.clock() - waitStart < 25 do
-		local all = true
-		for _, r in riders do
-			if r.player.Parent == Players and not terrainReady[r.player] then
-				all = false
-			end
-		end
-		if all then
-			break
-		end
-		task.wait(0.2)
-	end
-
-	for _, r in riders do
-		local _, _, root = charParts(r.player)
-		if root then
-			root.Anchored = false
-		end
-		terrainReady[r.player] = nil
-	end
-
-	task.wait(0.4)
 	firstPerson(players, false)
-	for _, pl in players do
-		if pl.Parent == Players then
-			Remotes.CutsceneFx:FireClient(pl, "Loading", false)
-		end
-	end
-	fade(players, false, 1.0)
+	building[padId] = nil
+	watchStage(stage, riders, origin)
 end
 
 function Cutscene.cleanup(padId)
-	local stage = Workspace:FindFirstChild("Stage" .. padId)
+	-- убираем только карту, которая так и не достроилась из-за ошибки
+	local stage = building[padId]
 	if stage then
 		stage:Destroy()
+		building[padId] = nil
 	end
 end
 

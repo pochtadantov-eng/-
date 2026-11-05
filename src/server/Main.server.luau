@@ -4,7 +4,6 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Workspace = game:GetService("Workspace")
 
 local Hub = require(script.Parent.Hub)
-local Forest = require(script.Parent.Forest)
 local LobbyService = require(script.Parent.LobbyService)
 local Economy = require(script.Parent.Economy)
 local Config = require(ReplicatedStorage.Shared.Config)
@@ -105,13 +104,7 @@ clouds.Cover = 0.45
 clouds.Density = 0.55
 clouds.Parent = Workspace.Terrain
 
--- Лес генерируется в фоне, пока строится хаб и игроки в нём
-task.spawn(function()
-	local ok, err = xpcall(Forest.generate, debug.traceback)
-	if not ok then
-		warn("[Forest] ошибка генерации леса:\n" .. tostring(err))
-	end
-end)
+-- Отдельная карта леса больше не нужна: играем прямо там, куда приезжает фургон
 
 local ok, result = xpcall(Hub.build, debug.traceback)
 if not ok then
