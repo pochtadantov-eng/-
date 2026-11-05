@@ -89,27 +89,40 @@ local birdFolder = Instance.new("Folder")
 birdFolder.Name = "Birds"
 birdFolder.Parent = Workspace
 
+local function blob(parent, size, color)
+	local p = bodyPart(parent, Enum.PartType.Block, size, color)
+	local mesh = Instance.new("SpecialMesh")
+	mesh.MeshType = Enum.MeshType.Sphere
+	mesh.Parent = p
+	return p
+end
+
+-- Небольшие птицы: тело-овал, голова, клюв, хвост и крылья из двух частей
+-- (плечо и кисть), машут и периодически парят.
 local birds = {}
 local birdColors = {
-	Color3.fromRGB(60, 60, 66),
-	Color3.fromRGB(235, 235, 235),
-	Color3.fromRGB(150, 110, 80),
-	Color3.fromRGB(90, 100, 120),
+	{ Color3.fromRGB(48, 48, 52), Color3.fromRGB(30, 30, 34) }, -- ворона
+	{ Color3.fromRGB(235, 236, 238), Color3.fromRGB(120, 124, 132) }, -- чайка
+	{ Color3.fromRGB(112, 84, 60), Color3.fromRGB(70, 52, 38) }, -- воробей
+	{ Color3.fromRGB(96, 104, 118), Color3.fromRGB(60, 66, 78) }, -- голубь
 }
-for i = 1, 14 do
-	local color = birdColors[rng:NextInteger(1, #birdColors)]
+for i = 1, 10 do
+	local c = birdColors[rng:NextInteger(1, #birdColors)]
 	local model = Instance.new("Model")
 	model.Name = "Bird" .. i
 	model.Parent = birdFolder
 	birds[i] = {
-		body = bodyPart(model, Enum.PartType.Ball, Vector3.new(1.1, 1, 2.4), color),
-		head = bodyPart(model, Enum.PartType.Ball, Vector3.new(0.75, 0.75, 0.75), color),
-		beak = bodyPart(model, Enum.PartType.Block, Vector3.new(0.2, 0.2, 0.5), Color3.fromRGB(255, 170, 40)),
-		wingL = bodyPart(model, Enum.PartType.Block, Vector3.new(2.8, 0.12, 1.3), color),
-		wingR = bodyPart(model, Enum.PartType.Block, Vector3.new(2.8, 0.12, 1.3), color),
-		radius = rng:NextNumber(30, 95),
-		height = rng:NextNumber(35, 80),
-		speed = rng:NextNumber(0.18, 0.4) * (rng:NextNumber() < 0.5 and -1 or 1),
+		body = blob(model, Vector3.new(0.55, 0.5, 1.4), c[1]),
+		head = blob(model, Vector3.new(0.42, 0.42, 0.46), c[1]),
+		beak = bodyPart(model, Enum.PartType.Block, Vector3.new(0.1, 0.08, 0.3), Color3.fromRGB(230, 160, 40)),
+		tail = bodyPart(model, Enum.PartType.Block, Vector3.new(0.45, 0.05, 0.55), c[2]),
+		wingInL = bodyPart(model, Enum.PartType.Block, Vector3.new(0.9, 0.05, 0.55), c[1]),
+		wingInR = bodyPart(model, Enum.PartType.Block, Vector3.new(0.9, 0.05, 0.55), c[1]),
+		wingOutL = bodyPart(model, Enum.PartType.Block, Vector3.new(0.85, 0.04, 0.4), c[2]),
+		wingOutR = bodyPart(model, Enum.PartType.Block, Vector3.new(0.85, 0.04, 0.4), c[2]),
+		radius = rng:NextNumber(25, 60),
+		height = rng:NextNumber(28, 50),
+		speed = rng:NextNumber(0.25, 0.45) * (rng:NextNumber() < 0.5 and -1 or 1),
 		phase = rng:NextNumber(0, math.pi * 2),
 	}
 end
@@ -294,7 +307,8 @@ local carColors = {
 	Color3.fromRGB(190, 160, 110), -- песочный
 }
 
-local LANE_LENGTH = 760
+-- машины разворачиваются внутри тоннелей на концах дороги
+local LANE_LENGTH = Config.CAR_WRAP_X * 2
 local cars = {}
 local function addLane(dir, laneZ, speed, count)
 	for i = 1, count do
@@ -308,8 +322,8 @@ local function addLane(dir, laneZ, speed, count)
 		table.insert(cars, car)
 	end
 end
-addLane(1, Config.ROAD_Z + 6, 30, 6)
-addLane(-1, Config.ROAD_Z - 6, 26, 6)
+addLane(1, Config.ROAD_Z + 6, 30, 4)
+addLane(-1, Config.ROAD_Z - 6, 26, 4)
 
 -- ===== Обновление каждый кадр =====
 local t0 = os.clock()
@@ -321,22 +335,32 @@ RunService.RenderStepped:Connect(function(dt)
 	local focus = camera.Focus.Position
 	center = center:Lerp(Vector3.new(focus.X, 0, focus.Z), math.clamp(dt * 2, 0, 1))
 	local parts, cframes = {}, {}
+	local function put(part, cf)
+		table.insert(parts, part)
+		table.insert(cframes, cf)
+	end
 	for _, b in birds do
 		local a = b.phase + t * b.speed
-		local pos = center + Vector3.new(math.cos(a) * b.radius, b.height + math.sin(t * 0.7 + b.phase) * 3, math.sin(a) * b.radius)
-		local tangent = Vector3.new(-math.sin(a), 0, math.cos(a)) * (b.speed > 0 and 1 or -1)
-		local cf = CFrame.lookAt(pos, pos + tangent) * CFrame.Angles(0, 0, math.sin(t * 0.7 + b.phase) * 0.15)
-		local flap = math.sin(t * 9 + b.phase) * 0.7
-		table.insert(parts, b.body)
-		table.insert(cframes, cf)
-		table.insert(parts, b.head)
-		table.insert(cframes, cf * CFrame.new(0, 0.25, -1.3))
-		table.insert(parts, b.beak)
-		table.insert(cframes, cf * CFrame.new(0, 0.2, -1.8))
-		table.insert(parts, b.wingR)
-		table.insert(cframes, cf * CFrame.new(0.5, 0.1, 0) * CFrame.Angles(0, 0, flap) * CFrame.new(1.4, 0, 0))
-		table.insert(parts, b.wingL)
-		table.insert(cframes, cf * CFrame.new(-0.5, 0.1, 0) * CFrame.Angles(0, 0, -flap) * CFrame.new(-1.4, 0, 0))
+		local dir = b.speed > 0 and 1 or -1
+		local pos = center + Vector3.new(math.cos(a) * b.radius, b.height + math.sin(t * 0.5 + b.phase) * 4, math.sin(a) * b.radius)
+		local tangent = Vector3.new(-math.sin(a), 0, math.cos(a)) * dir
+		-- крен внутрь поворота и лёгкий наклон носом при наборе высоты
+		local cf = CFrame.lookAt(pos, pos + tangent) * CFrame.Angles(math.cos(t * 0.5 + b.phase) * 0.08, 0, -0.32 * dir)
+		-- серия взмахов, потом парение
+		local amp = math.clamp((math.sin(t * 0.6 + b.phase * 2) + 0.2) * 2, 0, 1)
+		local flap = 0.12 + amp * math.sin(t * 11 + b.phase) * 0.7
+		put(b.body, cf)
+		put(b.head, cf * CFrame.new(0, 0.14, -0.78))
+		put(b.beak, cf * CFrame.new(0, 0.1, -1.08))
+		put(b.tail, cf * CFrame.new(0, 0.04, 0.9) * CFrame.Angles(math.rad(-8), 0, 0))
+		for _, side in { 1, -1 } do
+			local shoulder = cf * CFrame.new(side * 0.22, 0.1, -0.05) * CFrame.Angles(0, 0, side * flap)
+			put(side == 1 and b.wingInR or b.wingInL, shoulder * CFrame.new(side * 0.45, 0, 0))
+			put(
+				side == 1 and b.wingOutR or b.wingOutL,
+				shoulder * CFrame.new(side * 0.9, 0, 0) * CFrame.Angles(0, 0, side * flap * 0.6) * CFrame.new(side * 0.42, 0, 0.06)
+			)
+		end
 	end
 	Workspace:BulkMoveTo(parts, cframes, Enum.BulkMoveMode.FireCFrameChanged)
 

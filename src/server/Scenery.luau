@@ -9,6 +9,8 @@ local Scenery = {}
 
 local ROAD_Z = Config.ROAD_Z
 local PI2 = math.pi * 2
+local HOUSE_SCALE = 2
+local TUNNEL_HILL_X = 272
 
 local WALL_COLORS = {
 	Color3.fromRGB(238, 226, 205),
@@ -153,7 +155,10 @@ local function house(parent, cf, rng)
 		bush.CanCollide = false
 	end
 
-	return W + 8
+	-- весь дом в 2 раза больше (персонаж ростом ~5 студов, дверь теперь ~7)
+	m.WorldPivot = cf
+	m:ScaleTo(HOUSE_SCALE)
+	return (W + 8) * HOUSE_SCALE
 end
 
 -- ===== Высотка: бетонный корпус и полосы окон =====
@@ -191,20 +196,29 @@ function Scenery.buildTown(parent, rng)
 	folder.Parent = parent
 
 	local spots = {}
-	local function nearRoad(z, margin)
-		return math.abs(z - ROAD_Z) < margin
+	local function blocked(x, z, roadMargin, hillMargin)
+		if math.abs(z - ROAD_Z) < roadMargin then
+			return true
+		end
+		for _, sx in { -1, 1 } do
+			local dx, dz = x - sx * TUNNEL_HILL_X, z - ROAD_Z
+			if dx * dx + dz * dz < hillMargin * hillMargin then
+				return true
+			end
+		end
+		return false
 	end
 
-	-- кольца домов (не ближе 150 студов к центру, забор на 100)
-	for _, r in { 155, 200, 245, 290 } do
-		local count = math.floor(PI2 * r / 40)
+	-- кольца больших домов (стена лобби на 64, первые дома с 150)
+	for _, r in { 150, 225, 300 } do
+		local count = math.floor(PI2 * r / 78)
 		for i = 0, count - 1 do
-			local a = (i / count) * PI2 + rng:NextNumber(-0.04, 0.04)
+			local a = (i / count) * PI2 + rng:NextNumber(-0.03, 0.03)
 			local rr = r + rng:NextNumber(-6, 6)
 			local x, z = math.cos(a) * rr, math.sin(a) * rr
-			if not nearRoad(z, 34) and rng:NextNumber() < 0.9 then
+			if not blocked(x, z, 62, 135) then
 				local pos = Vector3.new(x, 0, z)
-				local cf = CFrame.lookAt(pos, pos * 2) * CFrame.Angles(0, rng:NextNumber(-0.2, 0.2), 0)
+				local cf = CFrame.lookAt(pos, pos * 2) * CFrame.Angles(0, rng:NextNumber(-0.15, 0.15), 0)
 				house(folder, cf, rng)
 				table.insert(spots, Vector2.new(x, z))
 			end
@@ -212,13 +226,13 @@ function Scenery.buildTown(parent, rng)
 		task.wait()
 	end
 
-	-- высотки подальше
-	for _, r in { 345, 385 } do
-		local count = math.floor(PI2 * r / 75)
+	-- высотки подальше, но до гор
+	for _, r in { 385, 435 } do
+		local count = math.floor(PI2 * r / 80)
 		for i = 0, count - 1 do
 			local a = (i / count) * PI2 + rng:NextNumber(-0.05, 0.05)
 			local x, z = math.cos(a) * r, math.sin(a) * r
-			if not nearRoad(z, 40) then
+			if not blocked(x, z, 45, 150) then
 				local pos = Vector3.new(x, 0, z)
 				tower(folder, CFrame.lookAt(pos, pos * 2), rng)
 				table.insert(spots, Vector2.new(x, z))
@@ -232,16 +246,15 @@ end
 
 -- ===== Горы по горизонту =====
 function Scenery.buildMountains(terrain, rng)
-	local n = 26
+	-- кольцо гор далеко за высотками (высотки до ~460, горы начинаются с ~490)
+	local n = 30
 	for i = 1, n do
-		local a = (i / n) * PI2 + rng:NextNumber(-0.05, 0.05)
-		local r = rng:NextNumber(80, 118)
-		local pos = Vector3.new(math.cos(a) * 470, -30 + rng:NextNumber(-8, 8), math.sin(a) * 380 - 60)
+		local a = (i / n) * PI2 + rng:NextNumber(-0.04, 0.04)
+		local r = rng:NextNumber(95, 130)
+		local dist = 620 + rng:NextNumber(-10, 25)
+		local pos = Vector3.new(math.cos(a) * dist, -35 + rng:NextNumber(-8, 8), math.sin(a) * dist)
 		terrain:FillBall(pos, r, Enum.Material.Rock)
-		-- снежная вершина
 		terrain:FillBall(pos + Vector3.new(0, r * 0.95, 0), r * 0.32, Enum.Material.Snow)
-		-- зелёные предгорья
-		terrain:FillBall(pos * Vector3.new(0.86, 1, 0.86) + Vector3.new(0, -30, -8), r * 0.65, Enum.Material.Grass)
 	end
 	terrain:SetMaterialColor(Enum.Material.Snow, Color3.fromRGB(240, 244, 250))
 end

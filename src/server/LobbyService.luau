@@ -62,22 +62,26 @@ local function setGroup(player, name)
 	end
 end
 
+local YELLOW = Color3.fromRGB(255, 221, 60)
+local WHITE = Color3.fromRGB(255, 255, 255)
+local RED_TEXT = Color3.fromRGB(255, 110, 100)
+
 local function refreshVisual(p)
-	local text
+	local text, color
 	if p.state == "empty" then
-		text = "Свободно\nвстань в круг"
+		text, color = "Свободно", WHITE
 	elseif p.state == "setup" then
-		text = p.owner.DisplayName .. "\nсоздаёт лобби…"
+		text, color = string.format("%d/%d", #p.members, p.previewSize or Config.DEFAULT_PLAYERS), YELLOW
 	elseif p.state == "open" then
-		text = string.format("Лобби: %s\n%d / %d", mapName(p.map), #p.members, p.size)
+		text, color = string.format("%d/%d", #p.members, p.size), YELLOW
 	elseif p.state == "countdown" then
 		local left = math.max(0, math.ceil(p.countdownEnd - Workspace:GetServerTimeNow()))
-		text = string.format("Старт через %d", left)
+		text, color = string.format("Отправка через %d", left), YELLOW
 	else
-		text = "Игра идёт"
+		text, color = "В игре", RED_TEXT
 	end
 	p.info.label.Text = text
-	p.info.part.Color = COLORS[p.state]
+	p.info.label.TextColor3 = color
 
 	local mode
 	if p.state == "empty" then
@@ -127,6 +131,7 @@ local function resetPad(p)
 	p.state = "empty"
 	p.map = nil
 	p.size = 0
+	p.previewSize = nil
 	p.countdownEnd = nil
 	refreshVisual(p)
 end
@@ -329,6 +334,12 @@ function LobbyService.start(hubPads)
 			end
 			broadcast(p)
 			refreshVisual(p)
+		elseif action == "Preview" then
+			-- владелец крутит «+ / –», надпись над кругом сразу показывает 1/N
+			if p.owner == player and p.state == "setup" then
+				p.previewSize = math.clamp(math.floor(tonumber(a) or Config.DEFAULT_PLAYERS), Config.MIN_PLAYERS, Config.MAX_PLAYERS)
+				refreshVisual(p)
+			end
 		elseif action == "StartNow" then
 			if p.owner == player then
 				begin(p)
