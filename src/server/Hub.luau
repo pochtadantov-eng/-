@@ -596,8 +596,16 @@ function Hub.build()
 	local params = RaycastParams.new()
 	params.FilterType = Enum.RaycastFilterType.Include
 	params.FilterDescendantsInstances = { terrain }
-	local hit = Workspace:Raycast(Vector3.new(SPAWN.X, 120, SPAWN.Z), Vector3.new(0, -240, 0), params)
-	local groundY = hit and hit.Position.Y or 0
+	-- Только что залитый террейн ловится лучом не сразу: ждём, пока он «соберётся».
+	local hit
+	local t0 = os.clock()
+	repeat
+		task.wait(0.2)
+		hit = Workspace:Raycast(Vector3.new(SPAWN.X, 120, SPAWN.Z), Vector3.new(0, -240, 0), params)
+	until hit or os.clock() - t0 > 20
+	-- Если луч так и не попал, берём типичную высоту поверхности (примерно на 2 выше заливки)
+	local groundY = hit and hit.Position.Y or 2
+	print(string.format("[Hub] уровень земли: %.2f (%s)", groundY, hit and "измерен" or "по умолчанию"))
 	Workspace:SetAttribute("HubGroundY", groundY)
 	-- спавн и страховочный пол поднимаем сразу
 	for _, d in folder:GetDescendants() do
