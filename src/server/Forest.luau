@@ -11,7 +11,7 @@ local ORIGIN = Config.FOREST_ORIGIN
 local SIZE = Config.FOREST_SIZE
 local HALF = SIZE / 2
 local VOX = 4
-local LAYERS = 40 -- 40 * 4 = 160 студов высоты
+local LAYERS = 64 -- 64 * 4 = 256 студов высоты (нужно для высоких гор по краю)
 local SEED = 1337
 local TREE_COUNT = 360
 local ROCK_COUNT = 280
@@ -46,8 +46,8 @@ local function rayGround(x, z)
 		rayParams.FilterDescendantsInstances = { terrain }
 	end
 	return Workspace:Raycast(
-		Vector3.new(ORIGIN.X + x, ORIGIN.Y + 220, ORIGIN.Z + z),
-		Vector3.new(0, -300, 0),
+		Vector3.new(ORIGIN.X + x, ORIGIN.Y + 320, ORIGIN.Z + z),
+		Vector3.new(0, -420, 0),
 		rayParams
 	)
 end
@@ -62,13 +62,13 @@ local function heightAt(x, z)
 
 	-- горы внутри карты
 	local m = math.max(0, math.noise(nx * 2.0 + 40.2, nz * 2.0 + 31.7) - 0.08)
-	h += m * m * 650
+	h += m * m * 280 -- внутри карты только холмы, без высоких снежных гор
 
 	-- горная стена по краю карты
 	local edge = math.max(math.abs(nx), math.abs(nz)) * 2
 	local b = math.clamp((edge - 0.72) / 0.28, 0, 1)
 	-- горы по краю: острые вершины разной высоты, не упираются в потолок (иначе плоские плато)
-	h += b * b * (58 + math.noise(nx * 7 + 2.2, nz * 7 + 8.8) * 46)
+	h += (b ^ 1.6) * (150 + math.noise(nx * 7 + 2.2, nz * 7 + 8.8) * 70)
 
 	-- ровная поляна в центре
 	local d = math.sqrt(x * x + z * z)
@@ -84,11 +84,11 @@ local function heightAt(x, z)
 		h += (13 - h) * ms * 0.9
 	end
 
-	return math.clamp(h, 5, 156)
+	return math.clamp(h, 5, 250)
 end
 
 local function surfaceMaterial(h, slope, x, z)
-	if h > 88 then
+	if h > 150 then
 		return Enum.Material.Snow
 	elseif h > 70 or slope > 1.0 then
 		return Enum.Material.Rock
@@ -387,8 +387,8 @@ local function placeProps()
 
 	local function ground(x, z)
 		return Workspace:Raycast(
-			Vector3.new(ORIGIN.X + x, ORIGIN.Y + 220, ORIGIN.Z + z),
-			Vector3.new(0, -300, 0),
+			Vector3.new(ORIGIN.X + x, ORIGIN.Y + 320, ORIGIN.Z + z),
+			Vector3.new(0, -420, 0),
 			params
 		)
 	end
@@ -483,7 +483,7 @@ local function buildBounds()
 	local folder = Instance.new("Folder")
 	folder.Name = "ForestBounds"
 	folder.Parent = Workspace
-	local inner = HALF - 40
+	local inner = HALF - 64 -- у самого подножия краевых гор
 	for _, spec in {
 		{ Vector3.new(inner, 0, 0), Vector3.new(2, 600, SIZE) },
 		{ Vector3.new(-inner, 0, 0), Vector3.new(2, 600, SIZE) },

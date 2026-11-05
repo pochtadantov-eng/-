@@ -66,11 +66,27 @@ local function fadeTo(track, on)
 	end
 end
 
+-- Дымка: в лесу густая (дальние края растворяются, мир не выглядит островом), в лобби лёгкая
+local Lighting = game:GetService("Lighting")
+local FOG = {
+	hub = { Density = 0.14, Haze = 0.5, Offset = 0.2, Color = Color3.fromRGB(205, 220, 240) },
+	stage = { Density = 0.3, Haze = 1.2, Offset = 0.1, Color = Color3.fromRGB(205, 220, 230) },
+	forest = { Density = 0.46, Haze = 2.2, Offset = 0.05, Color = Color3.fromRGB(190, 205, 200) },
+}
+local lastZone
+
 task.spawn(function()
 	while true do
 		local zone = currentZone()
 		fadeTo(hubMusic, zone == "hub")
 		fadeTo(forestMusic, zone == "forest")
+		if zone ~= lastZone then
+			lastZone = zone
+			local atm = Lighting:FindFirstChildOfClass("Atmosphere")
+			if atm and FOG[zone] then
+				TweenService:Create(atm, TweenInfo.new(1.5), FOG[zone]):Play()
+			end
+		end
 		task.wait(0.5)
 	end
 end)

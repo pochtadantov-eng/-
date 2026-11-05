@@ -36,6 +36,11 @@ local function onPlayer(player)
 	player.CameraMaxZoomDistance = 60
 	player.CharacterAdded:Connect(function(char)
 		task.spawn(applyAnimations, char)
+		-- на крутые склоны не забраться: персонаж с них соскальзывает
+		local hum = char:WaitForChild("Humanoid", 10)
+		if hum then
+			hum.MaxSlopeAngle = 46
+		end
 	end)
 	if player.Character then
 		task.spawn(applyAnimations, player.Character)
