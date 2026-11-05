@@ -452,24 +452,25 @@ local function buildPads(folder)
 		local rim = mk(
 			folder,
 			Enum.PartType.Cylinder,
-			Vector3.new(0.3, radius * 2 + 1.6, radius * 2 + 1.6),
-			CFrame.new(x, 0.3, z) * CFrame.Angles(0, 0, math.rad(90)),
+			Vector3.new(0.12, radius * 2 + 1.6, radius * 2 + 1.6),
+			CFrame.new(x, 0.06, z) * CFrame.Angles(0, 0, math.rad(90)),
 			Color3.fromRGB(250, 250, 246),
 			Enum.Material.SmoothPlastic
 		)
 		rim.Name = "PadRim" .. i
-		noCollide(rim)
+		rim.CanTouch = false -- тонкий и твёрдый: по нему просто ходят
 
 		local pad = mk(
 			folder,
 			Enum.PartType.Cylinder,
-			Vector3.new(0.3, radius * 2, radius * 2),
-			CFrame.new(x, 0.38, z) * CFrame.Angles(0, 0, math.rad(90)),
+			Vector3.new(0.12, radius * 2, radius * 2),
+			CFrame.new(x, 0.1, z) * CFrame.Angles(0, 0, math.rad(90)),
 			Color3.fromRGB(255, 205, 40),
 			Enum.Material.SmoothPlastic
 		)
 		pad.Name = "Pad" .. i
-		noCollide(pad)
+		pad.CanTouch = false
+		pad.CanQuery = false
 		local glow = Instance.new("PointLight")
 		glow.Range = 9
 		glow.Brightness = 0.35
@@ -479,7 +480,7 @@ local function buildPads(folder)
 		-- пунктирное белое кольцо вокруг круга
 		for d = 0, 19 do
 			local a = (d / 20) * PI2
-			local pos = Vector3.new(x, 0.55, z) + polar(radius + 0.4, a)
+			local pos = Vector3.new(x, 0.15, z) + polar(radius + 0.4, a)
 			local dash = mk(folder, Enum.PartType.Block, Vector3.new(1.5, 0.1, 0.4), CFrame.lookAt(pos, pos + polar(1, a)), Color3.new(1, 1, 1), Enum.Material.SmoothPlastic)
 			noCollide(dash)
 		end
