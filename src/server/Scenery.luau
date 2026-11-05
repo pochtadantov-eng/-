@@ -4,6 +4,7 @@ local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Geometry = require(ReplicatedStorage.Shared.Geometry)
 
 local Scenery = {}
 
@@ -95,14 +96,19 @@ local function house(parent, cf, rng)
 	end
 	part(Vector3.new(W + 1.9, 0.35, 0.6), CFrame.new(0, top + RH + 0.4, 0), roofColor:Lerp(Color3.new(0, 0, 0), 0.25), Enum.Material.SmoothPlastic)
 
-	-- фронтоны (треугольные торцы) ступеньками
-	local N = 8
-	local dh = RH / N
-	for i = 0, N - 1 do
-		local w = math.clamp(2 * (RH - (i + 0.5) * dh) / math.tan(theta), 0.4, D)
-		for _, sx in { -1, 1 } do
-			part(Vector3.new(0.3, dh + 0.02, w), CFrame.new(sx * (W / 2 - 0.15), top + i * dh + dh / 2, 0), wallColor, wallMat)
-		end
+	-- фронтоны: ровные треугольники под скатами крыши
+	for _, sx in { -1, 1 } do
+		local x = sx * (W / 2 - 0.15)
+		Geometry.triangle(
+			m,
+			cf:PointToWorldSpace(Vector3.new(x, top, -s)),
+			cf:PointToWorldSpace(Vector3.new(x, top, s)),
+			cf:PointToWorldSpace(Vector3.new(x, top + RH, 0)),
+			wallColor,
+			wallMat,
+			0.3,
+			true
+		)
 	end
 
 	-- окна на фасаде, дверь по центру первого этажа

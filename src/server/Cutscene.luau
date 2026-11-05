@@ -134,6 +134,12 @@ local function buildTruck(stage, baseCF, seatCount)
 			local wheel = add("Wheel", Vector3.new(1.2, 3.2, 3.2), Vector3.new(wx, 1.6, wz), Color3.fromRGB(25, 25, 25), Enum.Material.SmoothPlastic, false)
 			wheel.Shape = Enum.PartType.Cylinder
 			wheel.CFrame = baseCF * CFrame.new(wx, 1.6, wz) * CFrame.Angles(0, math.rad(90), 0)
+			-- диск и колпак
+			for _, spec in { { 1.3, 2.0, Color3.fromRGB(190, 192, 198) }, { 1.4, 0.8, Color3.fromRGB(90, 92, 98) } } do
+				local rim = add("Rim", Vector3.new(spec[1], spec[2], spec[2]), Vector3.new(wx, 1.6, wz), spec[3], Enum.Material.SmoothPlastic, false)
+				rim.Shape = Enum.PartType.Cylinder
+				rim.CFrame = wheel.CFrame
+			end
 		end
 	end
 

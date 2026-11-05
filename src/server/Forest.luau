@@ -3,6 +3,7 @@ local Workspace = game:GetService("Workspace")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local Geometry = require(ReplicatedStorage.Shared.Geometry)
 
 local Forest = { ready = false }
 
@@ -12,7 +13,7 @@ local HALF = SIZE / 2
 local VOX = 4
 local LAYERS = 40 -- 40 * 4 = 160 студов высоты
 local SEED = 1337
-local TREE_COUNT = 480
+local TREE_COUNT = 360
 local ROCK_COUNT = 280
 local CAVE_COUNT = 6
 
@@ -61,12 +62,13 @@ local function heightAt(x, z)
 
 	-- горы внутри карты
 	local m = math.max(0, math.noise(nx * 2.0 + 40.2, nz * 2.0 + 31.7) - 0.08)
-	h += m * m * 900
+	h += m * m * 650
 
 	-- горная стена по краю карты
 	local edge = math.max(math.abs(nx), math.abs(nz)) * 2
 	local b = math.clamp((edge - 0.72) / 0.28, 0, 1)
-	h += b * b * (95 + math.noise(nx * 6 + 2.2, nz * 6 + 8.8) * 40)
+	-- горы по краю: острые вершины разной высоты, не упираются в потолок (иначе плоские плато)
+	h += b * b * (58 + math.noise(nx * 7 + 2.2, nz * 7 + 8.8) * 46)
 
 	-- ровная поляна в центре
 	local d = math.sqrt(x * x + z * z)
@@ -86,7 +88,7 @@ local function heightAt(x, z)
 end
 
 local function surfaceMaterial(h, slope, x, z)
-	if h > 100 then
+	if h > 88 then
 		return Enum.Material.Snow
 	elseif h > 70 or slope > 1.0 then
 		return Enum.Material.Rock
@@ -99,12 +101,12 @@ local function surfaceMaterial(h, slope, x, z)
 	elseif n > 0.05 then
 		return Enum.Material.LeafyGrass
 	end
-	return Enum.Material.Grass
+	return Enum.Material.LeafyGrass
 end
 
 local function generateTerrain()
 	terrain:SetMaterialColor(Enum.Material.Grass, Color3.fromRGB(74, 122, 54))
-	terrain:SetMaterialColor(Enum.Material.LeafyGrass, Color3.fromRGB(62, 110, 48))
+	terrain:SetMaterialColor(Enum.Material.LeafyGrass, Color3.fromRGB(96, 158, 66))
 	terrain:SetMaterialColor(Enum.Material.Ground, Color3.fromRGB(96, 76, 52))
 	terrain:SetMaterialColor(Enum.Material.Rock, Color3.fromRGB(112, 112, 116))
 	terrain:SetMaterialColor(Enum.Material.Slate, Color3.fromRGB(90, 96, 100))
@@ -293,54 +295,53 @@ function Forest.makeTree(cf, scale, rng)
 	end
 
 	local kind = rng:NextNumber()
-	local shade = rng:NextNumber(-10, 12)
-	local lean = CFrame.Angles(rng:NextNumber(-0.03, 0.03), 0, rng:NextNumber(-0.03, 0.03))
-	local function green(r, g, b, jitter)
-		local j = rng:NextInteger(-jitter, jitter)
-		return Color3.fromRGB(math.clamp(r + shade + j, 0, 255), math.clamp(g + shade + j, 0, 255), math.clamp(b + shade, 0, 255))
+	local shade = rng:NextInteger(-10, 12)
+	local function tone(r, g, b)
+		return Color3.fromRGB(math.clamp(r + shade, 0, 255), math.clamp(g + shade, 0, 255), math.clamp(b + shade, 0, 255))
+	end
+	local function sphere(d, rel, color)
+		return addPart(Enum.PartType.Ball, Vector3.one * d, rel, color, Enum.Material.SmoothPlastic, false)
 	end
 
-	if kind < 0.5 then
-		-- ель: ярусы из нескольких неровных «лап», кверху всё уже
-		local trunkH = 8 * scale
-		trunk(trunkH, 1.3 * scale, Color3.fromRGB(84, 58, 38))
-		local layers = 5
-		for i = 1, layers do
-			local t = (i - 1) / (layers - 1)
-			local r = (4.6 - t * 3.3) * scale
-			local y = (2.8 + i * 2.5) * scale
-			local turn = rng:NextNumber(0, math.pi * 2)
-			for k = 1, 3 do
-				local a = turn + k * (math.pi * 2 / 3)
-				local off = Vector3.new(math.cos(a) * r * 0.4, rng:NextNumber(-0.4, 0.4) * scale, math.sin(a) * r * 0.4)
-				blob(Vector3.new(r * 1.35, 2.6 * scale, r * 1.35), lean * CFrame.new(Vector3.new(0, y, 0) + off) * CFrame.Angles(0, a, 0), green(30 + i * 3, 84 + i * 4, 46, 6))
-			end
+	if kind < 0.55 then
+		-- ель: три гранёных конуса друг над другом (аккуратный low-poly)
+		local trunkH = 4.5 * scale
+		trunk(trunkH + 2 * scale, 1.2 * scale, Color3.fromRGB(92, 64, 42))
+		local turn = rng:NextNumber(0, math.pi)
+		local tiers = {
+			{ r = 5.2, y = 2.6, h = 6.5, c = tone(38, 98, 56) },
+			{ r = 4.0, y = 6.0, h = 5.6, c = tone(44, 110, 62) },
+			{ r = 2.7, y = 9.2, h = 4.8, c = tone(52, 122, 68) },
+		}
+		for i, t in tiers do
+			local base = (cf * CFrame.new(0, t.y * scale, 0)).Position
+			Geometry.cone(model, base, t.r * scale, t.h * scale, 6, t.c, Enum.Material.SmoothPlastic, turn + i * 0.4)
 		end
-		blob(Vector3.new(1.6 * scale, 3.4 * scale, 1.6 * scale), lean * CFrame.new(0, (2.8 + layers * 2.5 + 2) * scale, 0), green(44, 104, 56, 4))
 	elseif kind < 0.85 then
-		-- дуб: крепкий ствол и пышная, неровная крона из клочьев
-		local h = 7 * scale
-		trunk(h, 1.9 * scale, Color3.fromRGB(96, 70, 46))
-		local crownY = h + 2.6 * scale
-		blob(Vector3.new(7.5 * scale, 6.5 * scale, 7.5 * scale), lean * CFrame.new(0, crownY, 0), green(66, 122, 54, 6))
-		for i = 1, 7 do
-			local a = i / 7 * math.pi * 2 + rng:NextNumber(-0.3, 0.3)
-			local up = rng:NextNumber(-0.6, 1)
-			local dist = rng:NextNumber(2.4, 3.4) * scale
-			local off = Vector3.new(math.cos(a) * dist, up * 2.2 * scale, math.sin(a) * dist)
-			local d = rng:NextNumber(4, 5.6) * scale
-			blob(Vector3.new(d, d * 0.85, d), lean * CFrame.new(Vector3.new(0, crownY, 0) + off), green(60 + math.floor(up * 14), 116 + math.floor(up * 16), 50, 8))
-		end
+		-- лиственное: прямой ствол и крона из трёх крупных шаров
+		local h = 6 * scale
+		trunk(h + 1, 1.5 * scale, Color3.fromRGB(104, 74, 48))
+		local y = h + 2.2 * scale
+		sphere(7.4 * scale, CFrame.new(0, y, 0), tone(78, 150, 60))
+		sphere(5.4 * scale, CFrame.new(2.6 * scale, y - 1.0 * scale, 0.8 * scale), tone(70, 140, 56))
+		sphere(5.0 * scale, CFrame.new(-2.2 * scale, y - 0.6 * scale, -1.4 * scale), tone(86, 160, 66))
 	else
-		-- берёза: светлый тонкий ствол и лёгкая вытянутая крона
-		local h = 9 * scale
-		trunk(h, 1.0 * scale, Color3.fromRGB(236, 234, 226))
-		for i = 1, 5 do
-			local a = i * 1.3 + rng:NextNumber(-0.3, 0.3)
-			local off = Vector3.new(math.cos(a) * 1.3 * scale, (i - 1) * 1.3 * scale, math.sin(a) * 1.3 * scale)
-			local d = rng:NextNumber(3.4, 4.6) * scale
-			blob(Vector3.new(d, d * 1.25, d), lean * CFrame.new(Vector3.new(0, h - 0.5 * scale, 0) + off), green(118, 170, 70, 8))
+		-- берёза: светлый ствол с тёмными полосками, лёгкая вытянутая крона
+		local h = 8 * scale
+		trunk(h + 1, 0.9 * scale, Color3.fromRGB(238, 236, 228))
+		for k = 1, 3 do
+			local mark = addPart(
+				Enum.PartType.Cylinder,
+				Vector3.new(0.25 * scale, 0.95 * scale, 0.95 * scale),
+				CFrame.new(0, k * 2.1 * scale, 0) * CFrame.Angles(0, 0, math.rad(90)),
+				Color3.fromRGB(40, 40, 40),
+				Enum.Material.SmoothPlastic,
+				false
+			)
+			mark.Transparency = 0.2
 		end
+		sphere(5.2 * scale, CFrame.new(0, h + 1.2 * scale, 0), tone(130, 186, 78))
+		sphere(4.0 * scale, CFrame.new(0.6 * scale, h + 3.6 * scale, -0.4 * scale), tone(140, 196, 84))
 	end
 
 	return model
@@ -477,7 +478,31 @@ local function placeProps()
 	Forest.buildCampsite(folder)
 end
 
+-- Невидимые стены внутри кольца гор: на дальние вершины не залезть и край карты не увидеть
+local function buildBounds()
+	local folder = Instance.new("Folder")
+	folder.Name = "ForestBounds"
+	folder.Parent = Workspace
+	local inner = HALF - 40
+	for _, spec in {
+		{ Vector3.new(inner, 0, 0), Vector3.new(2, 600, SIZE) },
+		{ Vector3.new(-inner, 0, 0), Vector3.new(2, 600, SIZE) },
+		{ Vector3.new(0, 0, inner), Vector3.new(SIZE, 600, 2) },
+		{ Vector3.new(0, 0, -inner), Vector3.new(SIZE, 600, 2) },
+	} do
+		local w = Instance.new("Part")
+		w.Anchored = true
+		w.Transparency = 1
+		w.CanQuery = false
+		w.CanTouch = false
+		w.Size = spec[2]
+		w.Position = ORIGIN + spec[1] + Vector3.new(0, 300, 0)
+		w.Parent = folder
+	end
+end
+
 function Forest.generate()
+	buildBounds()
 	local H, N = generateTerrain()
 	carveCaves(H, N)
 	placeProps()

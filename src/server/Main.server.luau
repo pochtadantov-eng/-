@@ -29,7 +29,11 @@ local function applyAnimations(char)
 	set("run", "RunAnim", Config.RUN_ANIM_ID)
 end
 
+-- Камеру нельзя отдалять слишком далеко: мир не должен выглядеть «островом в пустоте»
+game:GetService("StarterPlayer").CameraMaxZoomDistance = 60
+
 local function onPlayer(player)
+	player.CameraMaxZoomDistance = 60
 	player.CharacterAdded:Connect(function(char)
 		task.spawn(applyAnimations, char)
 	end)
@@ -48,7 +52,7 @@ Economy.start()
 Lighting.ClockTime = 14
 Lighting.GeographicLatitude = 30
 Lighting.Brightness = 2.6
-Lighting.ExposureCompensation = 0.15
+Lighting.ExposureCompensation = 0
 Lighting.Ambient = Color3.fromRGB(120, 125, 135)
 Lighting.OutdoorAmbient = Color3.fromRGB(150, 155, 165)
 Lighting.EnvironmentDiffuseScale = 1
@@ -68,14 +72,14 @@ local sky = Instance.new("Sky")
 sky.Parent = Lighting
 
 local sunRays = Instance.new("SunRaysEffect")
-sunRays.Intensity = 0.08
+sunRays.Intensity = 0.04
 sunRays.Spread = 0.7
 sunRays.Parent = Lighting
 
 local bloom = Instance.new("BloomEffect")
-bloom.Intensity = 0.5
-bloom.Size = 28
-bloom.Threshold = 1.4
+bloom.Intensity = 0.12
+bloom.Size = 18
+bloom.Threshold = 2.4
 bloom.Parent = Lighting
 
 local color = Instance.new("ColorCorrectionEffect")

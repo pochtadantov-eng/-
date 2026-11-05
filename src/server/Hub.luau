@@ -96,14 +96,14 @@ end
 
 -- ===== Земля, дорога, холмы с тоннелями =====
 local function buildTerrain()
-	terrain:FillBlock(CFrame.new(0, -8, 0), Vector3.new(1400, 16, 1400), Enum.Material.Grass)
+	terrain:FillBlock(CFrame.new(0, -8, 0), Vector3.new(1400, 16, 1400), Enum.Material.LeafyGrass)
 
 	-- холмы на концах дороги, в них тоннели
 	for _, sx in { -1, 1 } do
 		local c = Vector3.new(sx * 272, -22, ROAD_Z)
-		terrain:FillBall(c, 72, Enum.Material.Grass)
-		terrain:FillBall(c + Vector3.new(sx * 34, 8, -44), 56, Enum.Material.Grass)
-		terrain:FillBall(c + Vector3.new(sx * 24, 0, 52), 60, Enum.Material.Grass)
+		terrain:FillBall(c, 72, Enum.Material.LeafyGrass)
+		terrain:FillBall(c + Vector3.new(sx * 34, 8, -44), 56, Enum.Material.LeafyGrass)
+		terrain:FillBall(c + Vector3.new(sx * 24, 0, 52), 60, Enum.Material.LeafyGrass)
 		terrain:FillBlock(CFrame.new(sx * (TUNNEL_X + 50), 8.5, ROAD_Z), Vector3.new(100, 19, 32), Enum.Material.Rock)
 		terrain:FillBlock(CFrame.new(sx * (TUNNEL_X + 50), 7.5, ROAD_Z), Vector3.new(100, 15, 27), Enum.Material.Air)
 	end
@@ -115,7 +115,7 @@ local function buildTerrain()
 
 	-- лобби: кольцевая дорожка, клумба, дорожки, площадка у кругов, площадка у спавна
 	terrain:FillCylinder(CFrame.new(FOUNTAIN + Vector3.new(0, -2, 0)), 4, 27, Enum.Material.Pavement)
-	terrain:FillCylinder(CFrame.new(FOUNTAIN + Vector3.new(0, -2, 0)), 4, 21, Enum.Material.Grass)
+	terrain:FillCylinder(CFrame.new(FOUNTAIN + Vector3.new(0, -2, 0)), 4, 21, Enum.Material.LeafyGrass)
 	terrain:FillBlock(CFrame.new(0, -2, (SPAWN.Z + FOUNTAIN.Z) / 2), Vector3.new(8, 4, SPAWN.Z - FOUNTAIN.Z), Enum.Material.Pavement)
 	terrain:FillBlock(CFrame.new(0, -2, FOUNTAIN.Z), Vector3.new(118, 4, 7), Enum.Material.Pavement)
 	terrain:FillBlock(CFrame.new(0, -2, (FOUNTAIN.Z + PAD_Z) / 2), Vector3.new(8, 4, FOUNTAIN.Z - PAD_Z), Enum.Material.Pavement)
@@ -127,7 +127,7 @@ local function buildTerrain()
 	terrain:FillBlock(CFrame.new(SPAWN.X, -2, SPAWN.Z), Vector3.new(16, 4, 16), Enum.Material.Pavement)
 	terrain:FillCylinder(CFrame.new(FOUNTAIN + Vector3.new(0, -2, 0)), 4, 15, Enum.Material.Concrete)
 
-	terrain:SetMaterialColor(Enum.Material.Grass, Color3.fromRGB(86, 140, 62))
+	terrain:SetMaterialColor(Enum.Material.LeafyGrass, Color3.fromRGB(96, 158, 66))
 	terrain:SetMaterialColor(Enum.Material.Pavement, Color3.fromRGB(186, 180, 170))
 	terrain:SetMaterialColor(Enum.Material.Concrete, Color3.fromRGB(214, 210, 202))
 	terrain:SetMaterialColor(Enum.Material.Asphalt, Color3.fromRGB(52, 52, 56))
@@ -177,16 +177,15 @@ local function buildFountain(folder)
 	local waterColor = Color3.fromRGB(70, 175, 215)
 
 	local function water(height, diameter, y)
-		local w = cyl(f, height, diameter, c + Vector3.new(0, y, 0), waterColor, Enum.Material.Glass)
-		w.Transparency = 0.25
-		w.Reflectance = 0.3
+		local w = cyl(f, height, diameter, c + Vector3.new(0, y, 0), waterColor, Enum.Material.SmoothPlastic)
+		w.Transparency = 0.15
+		w.Reflectance = 0.08
 		w.CanCollide = false
 		return w
 	end
 
 	-- бассейн: тёмное дно, вода, скруглённый белый бортик
 	cyl(f, 1.0, 20, c + Vector3.new(0, 0.5, 0), granite, Enum.Material.SmoothPlastic)
-	noCollide(cyl(f, 0.1, 19.2, c + Vector3.new(0, 1.02, 0), Color3.fromRGB(110, 230, 255), Enum.Material.Neon))
 	water(0.3, 18.8, 1.1)
 	local n = 40
 	local chord = 2 * 9.6 * math.sin(math.pi / n) + 0.15
@@ -208,8 +207,8 @@ local function buildFountain(folder)
 		local lp = noCollide(mk(f, Enum.PartType.Block, Vector3.one * 0.4, CFrame.new(c + polar(6, i * math.pi / 2) + Vector3.new(0, 1.1, 0)), Color3.new(), Enum.Material.SmoothPlastic))
 		lp.Transparency = 1
 		local light = Instance.new("PointLight")
-		light.Range = 12
-		light.Brightness = 1.5
+		light.Range = 8
+		light.Brightness = 0.4
 		light.Color = Color3.fromRGB(120, 220, 255)
 		light.Parent = lp
 	end
@@ -227,7 +226,7 @@ local function buildFountain(folder)
 		pe.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, size or 0.3), NumberSequenceKeypoint.new(1, (size or 0.3) * 1.8) })
 		pe.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.15), NumberSequenceKeypoint.new(0.8, 0.5), NumberSequenceKeypoint.new(1, 1) })
 		pe.Color = ColorSequence.new(Color3.fromRGB(225, 245, 255))
-		pe.LightEmission = 0.35
+		pe.LightEmission = 0
 		pe.Parent = e
 	end
 	-- центральная высокая струя
@@ -315,7 +314,7 @@ local function buildGreenery(folder, houseSpots)
 
 	local function bush(pos, d)
 		local g = rng:NextInteger(0, 25)
-		local b = mk(f, Enum.PartType.Block, Vector3.new(d, d * 0.75, d), CFrame.new(pos + Vector3.new(0, d * 0.32, 0)), Color3.fromRGB(52 + g, 112 + g, 50), Enum.Material.Grass)
+		local b = mk(f, Enum.PartType.Block, Vector3.new(d, d * 0.75, d), CFrame.new(pos + Vector3.new(0, d * 0.32, 0)), Color3.fromRGB(52 + g, 112 + g, 50), Enum.Material.LeafyGrass)
 		local mesh = Instance.new("SpecialMesh")
 		mesh.MeshType = Enum.MeshType.Sphere
 		mesh.Parent = b
@@ -355,10 +354,10 @@ local function buildGreenery(folder, houseSpots)
 	-- деревья на газонах внутри лобби
 	local placed = 0
 	for _ = 1, 200 do
-		if placed >= 16 then
+		if placed >= 6 then
 			break
 		end
-		local pos = polar(rng:NextNumber(34, 56), rng:NextNumber(0, PI2))
+		local pos = polar(rng:NextNumber(48, 56), rng:NextNumber(0, PI2))
 		if not onPath(pos.X, pos.Z) then
 			tree(pos.X, pos.Z, rng:NextNumber(0.9, 1.3))
 			for _ = 1, 5 do
@@ -455,8 +454,8 @@ local function buildPads(folder)
 			Enum.PartType.Cylinder,
 			Vector3.new(0.3, radius * 2 + 1.6, radius * 2 + 1.6),
 			CFrame.new(x, 0.3, z) * CFrame.Angles(0, 0, math.rad(90)),
-			Color3.fromRGB(245, 245, 240),
-			Enum.Material.Marble
+			Color3.fromRGB(250, 250, 246),
+			Enum.Material.SmoothPlastic
 		)
 		rim.Name = "PadRim" .. i
 		noCollide(rim)
@@ -467,14 +466,13 @@ local function buildPads(folder)
 			Vector3.new(0.3, radius * 2, radius * 2),
 			CFrame.new(x, 0.38, z) * CFrame.Angles(0, 0, math.rad(90)),
 			Color3.fromRGB(255, 205, 40),
-			Enum.Material.Neon
+			Enum.Material.SmoothPlastic
 		)
 		pad.Name = "Pad" .. i
 		noCollide(pad)
-		pad.Transparency = 0.15
 		local glow = Instance.new("PointLight")
-		glow.Range = 14
-		glow.Brightness = 1.2
+		glow.Range = 9
+		glow.Brightness = 0.35
 		glow.Color = pad.Color
 		glow.Parent = pad
 
@@ -482,7 +480,7 @@ local function buildPads(folder)
 		for d = 0, 19 do
 			local a = (d / 20) * PI2
 			local pos = Vector3.new(x, 0.55, z) + polar(radius + 0.4, a)
-			local dash = mk(folder, Enum.PartType.Block, Vector3.new(1.5, 0.1, 0.4), CFrame.lookAt(pos, pos + polar(1, a)), Color3.new(1, 1, 1), Enum.Material.Neon)
+			local dash = mk(folder, Enum.PartType.Block, Vector3.new(1.5, 0.1, 0.4), CFrame.lookAt(pos, pos + polar(1, a)), Color3.new(1, 1, 1), Enum.Material.SmoothPlastic)
 			noCollide(dash)
 		end
 
@@ -570,7 +568,7 @@ local function buildSafety(folder)
 	spawn.Neutral = true
 	spawn.Duration = 0
 	spawn.Color = Color3.fromRGB(236, 236, 232)
-	spawn.Material = Enum.Material.Marble
+	spawn.Material = Enum.Material.SmoothPlastic
 	spawn.TopSurface = Enum.SurfaceType.Smooth
 	spawn.Parent = folder
 	for _, e in {
@@ -579,7 +577,7 @@ local function buildSafety(folder)
 		{ Vector3.new(0.6, 0.2, 10.6), Vector3.new(5, 0, 0) },
 		{ Vector3.new(0.6, 0.2, 10.6), Vector3.new(-5, 0, 0) },
 	} do
-		noCollide(box(folder, e[1], SPAWN + e[2] + Vector3.new(0, 0.55, 0), Color3.fromRGB(110, 200, 255), Enum.Material.Neon))
+		noCollide(box(folder, e[1], SPAWN + e[2] + Vector3.new(0, 0.55, 0), Color3.fromRGB(90, 170, 240), Enum.Material.SmoothPlastic))
 	end
 end
 

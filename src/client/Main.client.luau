@@ -249,22 +249,84 @@ local side = Instance.new("Frame")
 side.BackgroundTransparency = 1
 side.AnchorPoint = Vector2.new(0, 0.5)
 side.Position = UDim2.new(0, 22, 0.5, -20)
-side.Size = UDim2.fromOffset(120, 280)
+side.Size = UDim2.fromOffset(124, 300)
 side.Parent = gui
 
--- Тёмная скруглённая плитка с большой иконкой и подписью, налезающей на нижний край
-local function sideButton(icon, label, y, labelColor, window)
+-- Иконка корзины из фигур (эмодзи корзины в Roblox рисуется серым)
+local function basketIcon(parent)
+	local holder = Instance.new("Frame")
+	holder.BackgroundTransparency = 1
+	holder.AnchorPoint = Vector2.new(0.5, 0.5)
+	holder.Position = UDim2.fromScale(0.5, 0.47)
+	holder.Size = UDim2.fromScale(0.72, 0.62)
+	holder.ZIndex = 3
+	holder.Parent = parent
+
+	local handle = Instance.new("Frame")
+	handle.BackgroundTransparency = 1
+	handle.AnchorPoint = Vector2.new(0.5, 0)
+	handle.Position = UDim2.fromScale(0.5, 0)
+	handle.Size = UDim2.fromScale(0.62, 0.75)
+	handle.ZIndex = 3
+	handle.Parent = holder
+	corner(handle, 100)
+	outline(handle, 7, Color3.fromRGB(60, 62, 72))
+
+	local body = Instance.new("Frame")
+	body.AnchorPoint = Vector2.new(0.5, 1)
+	body.Position = UDim2.fromScale(0.5, 1)
+	body.Size = UDim2.fromScale(1, 0.56)
+	body.BackgroundColor3 = Color3.fromRGB(232, 46, 58)
+	body.ZIndex = 4
+	body.Parent = holder
+	corner(body, 10)
+	outline(body, 3)
+	local g = Instance.new("UIGradient")
+	g.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(190, 190, 190))
+	g.Rotation = 90
+	g.Parent = body
+	for i = 0, 2 do
+		local slot = Instance.new("Frame")
+		slot.AnchorPoint = Vector2.new(0.5, 0.5)
+		slot.Position = UDim2.fromScale(0.25 + i * 0.25, 0.58)
+		slot.Size = UDim2.fromScale(0.1, 0.5)
+		slot.BackgroundColor3 = Color3.fromRGB(150, 20, 30)
+		slot.ZIndex = 5
+		slot.Parent = body
+		corner(slot, 4)
+	end
+	local rim = Instance.new("Frame")
+	rim.AnchorPoint = Vector2.new(0.5, 0.5)
+	rim.Position = UDim2.fromScale(0.5, 0.02)
+	rim.Size = UDim2.fromScale(1.1, 0.24)
+	rim.BackgroundColor3 = Color3.fromRGB(255, 92, 100)
+	rim.ZIndex = 6
+	rim.Parent = body
+	corner(rim, 6)
+	outline(rim, 3)
+end
+
+local function iconText(parent, glyph)
+	local ic = text(parent, glyph, UDim2.fromScale(0, 0), UDim2.fromScale(1, 0.92), 70)
+	ic.TextStrokeTransparency = 1
+	ic.ZIndex = 3
+	return ic
+end
+
+-- Тёмная скруглённая плитка как в примере: светлая внутренняя рамка, крупная иконка
+-- и золотая подпись с толстой обводкой, налезающая на нижний край
+local function sideButton(drawIcon, label, y, window)
 	local b = Instance.new("TextButton")
-	b.Size = UDim2.fromOffset(104, 104)
+	b.Size = UDim2.fromOffset(112, 112)
 	b.Position = UDim2.fromOffset(4, y)
 	b.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 	b.Text = ""
-	b.AutoButtonColor = true
+	b.AutoButtonColor = false
 	b.Parent = side
-	corner(b, 24)
+	corner(b, 26)
 	outline(b, 4)
 	local g = Instance.new("UIGradient")
-	g.Color = ColorSequence.new(Color3.fromRGB(78, 80, 92), Color3.fromRGB(36, 38, 46))
+	g.Color = ColorSequence.new(Color3.fromRGB(84, 86, 98), Color3.fromRGB(40, 42, 50))
 	g.Rotation = 90
 	g.Parent = b
 
@@ -272,15 +334,33 @@ local function sideButton(icon, label, y, labelColor, window)
 	bevel.Size = UDim2.new(1, -12, 1, -12)
 	bevel.Position = UDim2.fromOffset(6, 6)
 	bevel.BackgroundTransparency = 1
+	bevel.ZIndex = 2
 	bevel.Parent = b
-	corner(bevel, 19)
-	outline(bevel, 2, Color3.fromRGB(120, 122, 136))
+	corner(bevel, 21)
+	outline(bevel, 2.5, Color3.fromRGB(128, 130, 144))
 
-	local ic = text(b, icon, UDim2.fromOffset(0, -6), UDim2.new(1, 0, 1, 0), 64)
-	ic.TextStrokeTransparency = 1
-	chunky(text(b, label, UDim2.new(0, -16, 1, -26), UDim2.new(1, 32, 0, 36), 30, labelColor), 3)
+	drawIcon(b)
 
+	local lbl = text(b, label, UDim2.new(0, -20, 1, -28), UDim2.new(1, 40, 0, 40), 32)
+	lbl.ZIndex = 8
+	chunky(lbl, 3.5)
+	local lg = Instance.new("UIGradient")
+	lg.Color = ColorSequence.new(Color3.fromRGB(255, 238, 120), Color3.fromRGB(255, 150, 30))
+	lg.Rotation = 90
+	lg.Parent = lbl
+
+	-- лёгкая анимация нажатия
+	local scale = Instance.new("UIScale")
+	scale.Parent = b
+	b.MouseEnter:Connect(function()
+		TweenService:Create(scale, TweenInfo.new(0.12), { Scale = 1.06 }):Play()
+	end)
+	b.MouseLeave:Connect(function()
+		TweenService:Create(scale, TweenInfo.new(0.12), { Scale = 1 }):Play()
+	end)
 	b.Activated:Connect(function()
+		scale.Scale = 0.92
+		TweenService:Create(scale, TweenInfo.new(0.15, Enum.EasingStyle.Back), { Scale = 1 }):Play()
 		local open = not window.Visible
 		boostsWindow.Visible = false
 		shopWindow.Visible = false
@@ -288,8 +368,10 @@ local function sideButton(icon, label, y, labelColor, window)
 	end)
 	return b
 end
-sideButton("🛒", "Магазин", 0, Color3.fromRGB(255, 190, 80), shopWindow)
-sideButton("⚡", "Усиления", 140, Color3.fromRGB(255, 235, 90), boostsWindow)
+sideButton(basketIcon, "Магазин", 0, shopWindow)
+sideButton(function(parent)
+	iconText(parent, "⚡")
+end, "Усиления", 150, boostsWindow)
 
 -- ===== Создание лобби (по центру) =====
 local setup = frame(gui, UDim2.fromOffset(420, 440), Vector2.new(0.5, 0.5), UDim2.fromScale(0.5, 0.5))
