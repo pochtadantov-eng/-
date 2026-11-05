@@ -69,6 +69,23 @@ local function text(parent, str, pos, size, textSize, color)
 	return l
 end
 
+-- Картинка из Roblox по ID (rbxassetid). Возвращает nil, если ID не задан.
+local function iconImage(parent, id, size, pos)
+	if id == nil or tostring(id) == "" then
+		return nil
+	end
+	local img = Instance.new("ImageLabel")
+	img.BackgroundTransparency = 1
+	img.Image = "rbxassetid://" .. tostring(id)
+	img.ScaleType = Enum.ScaleType.Fit
+	img.AnchorPoint = Vector2.new(0.5, 0.5)
+	img.Position = pos or UDim2.fromScale(0.5, 0.46)
+	img.Size = size or UDim2.fromScale(0.8, 0.8)
+	img.ZIndex = 3
+	img.Parent = parent
+	return img
+end
+
 -- толстая чёрная обводка букв, как в популярных играх
 local function chunky(label, thickness)
 	label.TextStrokeTransparency = 1
@@ -182,8 +199,67 @@ money.BackgroundTransparency = 1
 money.Position = UDim2.new(0, 22, 1, -96)
 money.Size = UDim2.fromOffset(320, 76)
 money.Parent = gui
-local moneyIcon = text(money, "💵", UDim2.fromOffset(0, 0), UDim2.fromOffset(76, 76), 60)
-moneyIcon.TextStrokeTransparency = 1
+if not iconImage(money, Config.UI_ICONS.money, UDim2.fromOffset(72, 72), UDim2.fromOffset(38, 38)) then
+	local moneyIcon = text(money, "💵", UDim2.fromOffset(0, 0), UDim2.fromOffset(76, 76), 60)
+	moneyIcon.TextStrokeTransparency = 1
+end
+
+-- ===== Здоровье (над деньгами): сердце, красная полоска, цифры =====
+game:GetService("StarterGui"):SetCoreGuiEnabled(Enum.CoreGuiType.Health, false)
+local hp = Instance.new("Frame")
+hp.BackgroundTransparency = 1
+hp.Position = UDim2.new(0, 22, 1, -170)
+hp.Size = UDim2.fromOffset(330, 64)
+hp.Parent = gui
+if not iconImage(hp, Config.UI_ICONS.health, UDim2.fromOffset(60, 60), UDim2.fromOffset(32, 32)) then
+	local heart = text(hp, "❤️", UDim2.fromOffset(0, 0), UDim2.fromOffset(64, 64), 50)
+	heart.TextStrokeTransparency = 1
+end
+local barBack = Instance.new("Frame")
+barBack.Position = UDim2.fromOffset(72, 12)
+barBack.Size = UDim2.fromOffset(250, 40)
+barBack.BackgroundColor3 = Color3.fromRGB(40, 20, 24)
+barBack.Parent = hp
+corner(barBack, 12)
+outline(barBack, 4)
+local barFill = Instance.new("Frame")
+barFill.Size = UDim2.fromScale(1, 1)
+barFill.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+barFill.Parent = barBack
+corner(barFill, 12)
+local fillGrad = Instance.new("UIGradient")
+fillGrad.Color = ColorSequence.new(Color3.fromRGB(255, 90, 90), Color3.fromRGB(200, 20, 30))
+fillGrad.Rotation = 90
+fillGrad.Parent = barFill
+local hpText = text(barBack, "100", UDim2.new(), UDim2.fromScale(1, 1), 28)
+hpText.ZIndex = 3
+hpText.TextStrokeTransparency = 1
+local hpStroke = Instance.new("UIStroke")
+hpStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+hpStroke.Thickness = 3
+hpStroke.Parent = hpText
+
+local hpConn
+local function watchHealth(char)
+	if hpConn then
+		hpConn:Disconnect()
+	end
+	local hum = char:WaitForChild("Humanoid", 10)
+	if not hum then
+		return
+	end
+	local function update()
+		local ratio = math.clamp(hum.Health / math.max(hum.MaxHealth, 1), 0, 1)
+		TweenService:Create(barFill, TweenInfo.new(0.25), { Size = UDim2.fromScale(ratio, 1) }):Play()
+		hpText.Text = string.format("%d / %d", math.ceil(hum.Health), math.ceil(hum.MaxHealth))
+	end
+	hpConn = hum.HealthChanged:Connect(update)
+	update()
+end
+player.CharacterAdded:Connect(watchHealth)
+if player.Character then
+	task.spawn(watchHealth, player.Character)
+end
 local coinsLabel = chunky(text(money, "$0", UDim2.fromOffset(84, 0), UDim2.new(1, -84, 1, 0), 60, Color3.fromRGB(120, 255, 80)), 4)
 coinsLabel.TextXAlignment = Enum.TextXAlignment.Left
 local function refreshCoins()
@@ -368,9 +444,15 @@ local function sideButton(drawIcon, label, y, window)
 	end)
 	return b
 end
-sideButton(basketIcon, "Магазин", 0, shopWindow)
 sideButton(function(parent)
-	iconText(parent, "⚡")
+	if not iconImage(parent, Config.UI_ICONS.shop) then
+		basketIcon(parent)
+	end
+end, "Магазин", 0, shopWindow)
+sideButton(function(parent)
+	if not iconImage(parent, Config.UI_ICONS.boosts) then
+		iconText(parent, "⚡")
+	end
 end, "Усиления", 150, boostsWindow)
 
 -- ===== Создание лобби (по центру) =====
