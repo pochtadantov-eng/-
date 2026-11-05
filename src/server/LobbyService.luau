@@ -24,11 +24,12 @@ local LobbyService = {}
 local pads = {}
 local memberPad = {} -- [Player] = pad
 
+-- цвет светящегося круга
 local COLORS = {
-	empty = Color3.fromRGB(90, 220, 120),
-	setup = Color3.fromRGB(255, 220, 90),
-	open = Color3.fromRGB(80, 160, 255),
-	countdown = Color3.fromRGB(255, 150, 60),
+	empty = Color3.fromRGB(255, 205, 40),
+	setup = Color3.fromRGB(255, 205, 40),
+	open = Color3.fromRGB(255, 205, 40),
+	countdown = Color3.fromRGB(255, 150, 40),
 	running = Color3.fromRGB(230, 70, 70),
 }
 
@@ -62,9 +63,10 @@ local function setGroup(player, name)
 	end
 end
 
-local YELLOW = Color3.fromRGB(255, 221, 60)
-local WHITE = Color3.fromRGB(255, 255, 255)
-local RED_TEXT = Color3.fromRGB(255, 110, 100)
+-- неоновые надписи: светлый цвет букв и насыщенное свечение вокруг
+local YELLOW = { Color3.fromRGB(255, 245, 150), Color3.fromRGB(255, 160, 0) }
+local WHITE = { Color3.fromRGB(255, 255, 255), Color3.fromRGB(90, 200, 255) }
+local RED_TEXT = { Color3.fromRGB(255, 200, 200), Color3.fromRGB(235, 40, 40) }
 
 local function refreshVisual(p)
 	local text, color
@@ -81,7 +83,11 @@ local function refreshVisual(p)
 		text, color = "В игре", RED_TEXT
 	end
 	p.info.label.Text = text
-	p.info.label.TextColor3 = color
+	p.info.label.TextColor3 = color[1]
+	local glow = p.info.label:FindFirstChild("Glow")
+	if glow then
+		glow.Color = color[2]
+	end
 
 	local mode
 	if p.state == "empty" then
@@ -148,7 +154,8 @@ local function pushOut(player, p)
 	if dir.Magnitude < 0.1 then
 		dir = Vector3.new(0, 0, 1)
 	end
-	local target = c + dir.Unit * (p.info.radius + 4) + Vector3.new(0, root.Position.Y, 0)
+	local flat = dir.Unit * (p.info.radius + 4)
+	local target = Vector3.new(c.X + flat.X, root.Position.Y, c.Z + flat.Z)
 	root.CFrame = CFrame.new(target) * root.CFrame.Rotation
 	root.AssemblyLinearVelocity = Vector3.zero
 end

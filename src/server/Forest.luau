@@ -12,7 +12,7 @@ local HALF = SIZE / 2
 local VOX = 4
 local LAYERS = 40 -- 40 * 4 = 160 студов высоты
 local SEED = 1337
-local TREE_COUNT = 800
+local TREE_COUNT = 480
 local ROCK_COUNT = 280
 local CAVE_COUNT = 6
 
@@ -274,7 +274,7 @@ function Forest.makeTree(cf, scale, rng)
 
 	-- мягкий овал (сплюснутая сфера) для хвои и листвы
 	local function blob(size, rel, color)
-		local p = addPart(Enum.PartType.Block, size, rel, color, Enum.Material.Grass, false)
+		local p = addPart(Enum.PartType.Block, size, rel, color, Enum.Material.SmoothPlastic, false)
 		local mesh = Instance.new("SpecialMesh")
 		mesh.MeshType = Enum.MeshType.Sphere
 		mesh.Parent = p
@@ -293,65 +293,83 @@ function Forest.makeTree(cf, scale, rng)
 	end
 
 	local kind = rng:NextNumber()
-	local shade = rng:NextNumber(-12, 14)
-	local lean = CFrame.Angles(rng:NextNumber(-0.04, 0.04), 0, rng:NextNumber(-0.04, 0.04))
+	local shade = rng:NextNumber(-10, 12)
+	local lean = CFrame.Angles(rng:NextNumber(-0.03, 0.03), 0, rng:NextNumber(-0.03, 0.03))
+	local function green(r, g, b, jitter)
+		local j = rng:NextInteger(-jitter, jitter)
+		return Color3.fromRGB(math.clamp(r + shade + j, 0, 255), math.clamp(g + shade + j, 0, 255), math.clamp(b + shade, 0, 255))
+	end
 
 	if kind < 0.5 then
-		-- ель: много мягких ярусов
-		trunk(9 * scale, 1.5 * scale, Color3.fromRGB(88, 62, 40))
-		local layers = 7
+		-- ель: ярусы из нескольких неровных «лап», кверху всё уже
+		local trunkH = 8 * scale
+		trunk(trunkH, 1.3 * scale, Color3.fromRGB(84, 58, 38))
+		local layers = 5
 		for i = 1, layers do
 			local t = (i - 1) / (layers - 1)
-			local d = (11.5 - t * 8.5) * scale
-			local y = (2.6 + i * 2.0) * scale
-			local col = Color3.fromRGB(26 + shade + i * 2, 78 + shade + i * 3, 44 + shade)
-			blob(Vector3.new(d, 3.4 * scale, d), lean * CFrame.new(0, y, 0) * CFrame.Angles(0, i, 0), col)
+			local r = (4.6 - t * 3.3) * scale
+			local y = (2.8 + i * 2.5) * scale
+			local turn = rng:NextNumber(0, math.pi * 2)
+			for k = 1, 3 do
+				local a = turn + k * (math.pi * 2 / 3)
+				local off = Vector3.new(math.cos(a) * r * 0.4, rng:NextNumber(-0.4, 0.4) * scale, math.sin(a) * r * 0.4)
+				blob(Vector3.new(r * 1.35, 2.6 * scale, r * 1.35), lean * CFrame.new(Vector3.new(0, y, 0) + off) * CFrame.Angles(0, a, 0), green(30 + i * 3, 84 + i * 4, 46, 6))
+			end
 		end
-		blob(Vector3.new(2.2 * scale, 4 * scale, 2.2 * scale), lean * CFrame.new(0, (2.6 + layers * 2.0 + 1.6) * scale, 0), Color3.fromRGB(34 + shade, 92 + shade, 54 + shade))
+		blob(Vector3.new(1.6 * scale, 3.4 * scale, 1.6 * scale), lean * CFrame.new(0, (2.8 + layers * 2.5 + 2) * scale, 0), green(44, 104, 56, 4))
 	elseif kind < 0.85 then
-		-- дуб: толстый ствол и пышная неровная крона
-		local h = 8 * scale
-		trunk(h, 2.0 * scale, Color3.fromRGB(96, 70, 46))
-		local crownY = h + 2.5 * scale
-		local count = 6
-		for i = 1, count do
-			local a = i / count * math.pi * 2
-			local off = Vector3.new(math.cos(a) * 2.6 * scale, rng:NextNumber(-1, 1.5) * scale, math.sin(a) * 2.6 * scale)
-			local d = rng:NextNumber(5.5, 7.5) * scale
-			local col = Color3.fromRGB(58 + shade + rng:NextInteger(-6, 6), 112 + shade + rng:NextInteger(-8, 8), 50 + shade)
-			blob(Vector3.new(d, d * 0.85, d), lean * CFrame.new(Vector3.new(0, crownY, 0) + off), col)
+		-- дуб: крепкий ствол и пышная, неровная крона из клочьев
+		local h = 7 * scale
+		trunk(h, 1.9 * scale, Color3.fromRGB(96, 70, 46))
+		local crownY = h + 2.6 * scale
+		blob(Vector3.new(7.5 * scale, 6.5 * scale, 7.5 * scale), lean * CFrame.new(0, crownY, 0), green(66, 122, 54, 6))
+		for i = 1, 7 do
+			local a = i / 7 * math.pi * 2 + rng:NextNumber(-0.3, 0.3)
+			local up = rng:NextNumber(-0.6, 1)
+			local dist = rng:NextNumber(2.4, 3.4) * scale
+			local off = Vector3.new(math.cos(a) * dist, up * 2.2 * scale, math.sin(a) * dist)
+			local d = rng:NextNumber(4, 5.6) * scale
+			blob(Vector3.new(d, d * 0.85, d), lean * CFrame.new(Vector3.new(0, crownY, 0) + off), green(60 + math.floor(up * 14), 116 + math.floor(up * 16), 50, 8))
 		end
-		blob(Vector3.new(8 * scale, 7 * scale, 8 * scale), lean * CFrame.new(0, crownY + 1.8 * scale, 0), Color3.fromRGB(70 + shade, 128 + shade, 58 + shade))
 	else
-		-- берёза: светлый ствол и лёгкая крона
-		local h = 10 * scale
-		trunk(h, 1.1 * scale, Color3.fromRGB(232, 230, 222))
-		for i = 1, 4 do
-			local a = i * 1.7
-			local off = Vector3.new(math.cos(a) * 1.4 * scale, i * 1.2 * scale, math.sin(a) * 1.4 * scale)
-			local d = rng:NextNumber(4, 5.5) * scale
-			blob(Vector3.new(d, d * 1.2, d), lean * CFrame.new(Vector3.new(0, h + scale, 0) + off), Color3.fromRGB(120 + shade, 172 + shade, 70 + shade))
+		-- берёза: светлый тонкий ствол и лёгкая вытянутая крона
+		local h = 9 * scale
+		trunk(h, 1.0 * scale, Color3.fromRGB(236, 234, 226))
+		for i = 1, 5 do
+			local a = i * 1.3 + rng:NextNumber(-0.3, 0.3)
+			local off = Vector3.new(math.cos(a) * 1.3 * scale, (i - 1) * 1.3 * scale, math.sin(a) * 1.3 * scale)
+			local d = rng:NextNumber(3.4, 4.6) * scale
+			blob(Vector3.new(d, d * 1.25, d), lean * CFrame.new(Vector3.new(0, h - 0.5 * scale, 0) + off), green(118, 170, 70, 8))
 		end
 	end
 
 	return model
 end
 
+-- Камень: один-три шара (у шара честная круглая коллизия — можно подойти вплотную)
 function Forest.makeRock(cf, size, rng)
-	local rock = Instance.new("Part")
-	rock.Name = "Rock"
-	rock.Material = Enum.Material.Slate
-	local g = rng:NextInteger(100, 128)
-	rock.Color = Color3.fromRGB(g, g, g + 4)
-	rock.Size = Vector3.new(size, size * rng:NextNumber(0.6, 1.0), size * rng:NextNumber(0.8, 1.3))
-	rock.CFrame = cf
-		* CFrame.Angles(rng:NextNumber(-0.4, 0.4), rng:NextNumber(0, math.pi * 2), rng:NextNumber(-0.4, 0.4))
-		* CFrame.new(0, size * 0.15, 0)
-	local mesh = Instance.new("SpecialMesh")
-	mesh.MeshType = Enum.MeshType.Sphere
-	mesh.Parent = rock
-	setPart(rock, true)
-	return rock
+	local model = Instance.new("Model")
+	model.Name = "Rock"
+	local g = rng:NextInteger(110, 134)
+	local base = Color3.fromRGB(g, g, g + 6)
+	local count = size > 6 and 3 or rng:NextInteger(1, 2)
+	for i = 1, count do
+		local d = size * (i == 1 and 1 or rng:NextNumber(0.45, 0.7))
+		local off = Vector3.zero
+		if i > 1 then
+			off = Vector3.new(rng:NextNumber(-0.5, 0.5) * size, -d * 0.1, rng:NextNumber(-0.5, 0.5) * size)
+		end
+		local p = Instance.new("Part")
+		p.Name = "Stone"
+		p.Shape = Enum.PartType.Ball
+		p.Size = Vector3.one * d
+		p.CFrame = cf * CFrame.new(off + Vector3.new(0, d * 0.22, 0))
+		p.Color = base:Lerp(Color3.new(1, 1, 1), rng:NextNumber(0, 0.08))
+		p.Material = Enum.Material.SmoothPlastic
+		setPart(p, true)
+		p.Parent = model
+	end
+	return model
 end
 
 local function placeProps()

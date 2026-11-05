@@ -112,9 +112,23 @@ local function buildTruck(stage, baseCF, seatCount)
 	add("WallL", Vector3.new(18, DOOR_H, 0.6), Vector3.new(0, FLOOR_TOP + DOOR_H / 2, -6.7), wood, Enum.Material.Wood)
 	add("WallR", Vector3.new(18, DOOR_H, 0.6), Vector3.new(0, FLOOR_TOP + DOOR_H / 2, 6.7), wood, Enum.Material.Wood)
 	add("WallF", Vector3.new(0.6, DOOR_H, 14), Vector3.new(8.7, FLOOR_TOP + DOOR_H / 2, 0), wood, Enum.Material.Wood)
-	add("Cab", Vector3.new(6.4, 5, 14), Vector3.new(12.2, 4.5, 0), green, Enum.Material.Metal)
-	local glass = add("Windshield", Vector3.new(0.2, 2.2, 12), Vector3.new(15.4, 5.6, 0), Color3.fromRGB(150, 200, 230), Enum.Material.Glass, false)
-	glass.Transparency = 0.4
+	-- кабина: низ, верх с окнами, фары, решётка, бампер
+	add("CabLower", Vector3.new(6.4, 2.6, 13.6), Vector3.new(12.2, 3.3, 0), green, Enum.Material.SmoothPlastic)
+	add("CabUpper", Vector3.new(4.6, 2.6, 13.2), Vector3.new(11.3, 5.9, 0), green, Enum.Material.SmoothPlastic)
+	add("CabRoof", Vector3.new(4.9, 0.4, 13.5), Vector3.new(11.3, 7.35, 0), green:Lerp(Color3.new(0, 0, 0), 0.2), Enum.Material.SmoothPlastic)
+	add("Stripe", Vector3.new(6.5, 0.35, 13.7), Vector3.new(12.2, 4.6, 0), Color3.fromRGB(235, 200, 60), Enum.Material.SmoothPlastic)
+	local glassColor = Color3.fromRGB(40, 60, 80)
+	local ws = add("Windshield", Vector3.new(0.2, 2.0, 12.2), Vector3.new(13.65, 5.9, 0), glassColor, Enum.Material.Glass, false)
+	ws.Transparency = 0.25
+	ws.Reflectance = 0.3
+	for _, sz in { -1, 1 } do
+		local sw = add("SideWindow", Vector3.new(3.6, 1.8, 0.2), Vector3.new(11.3, 5.9, sz * 6.65), glassColor, Enum.Material.Glass, false)
+		sw.Transparency = 0.25
+		add("Headlight", Vector3.new(0.3, 0.9, 1.8), Vector3.new(15.45, 3.6, sz * 4.8), Color3.fromRGB(255, 248, 220), Enum.Material.Neon, false)
+		add("Mirror", Vector3.new(0.6, 0.8, 0.4), Vector3.new(13.2, 6.0, sz * 7.2), Color3.fromRGB(30, 30, 34), Enum.Material.SmoothPlastic, false)
+	end
+	add("Grille", Vector3.new(0.3, 1.6, 6), Vector3.new(15.45, 3.4, 0), Color3.fromRGB(25, 25, 28), Enum.Material.SmoothPlastic, false)
+	add("Bumper", Vector3.new(0.8, 0.8, 14), Vector3.new(15.6, 2.0, 0), Color3.fromRGB(55, 58, 64), Enum.Material.SmoothPlastic, false)
 	for _, wx in { -5, 12 } do
 		for _, wz in { -7.8, 7.8 } do
 			local wheel = add("Wheel", Vector3.new(1.2, 3.2, 3.2), Vector3.new(wx, 1.6, wz), Color3.fromRGB(25, 25, 25), Enum.Material.SmoothPlastic, false)

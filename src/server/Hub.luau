@@ -136,7 +136,7 @@ local function buildTerrain()
 	Scenery.buildMountains(terrain, rng)
 end
 
--- ===== Высокая каменная стена по кругу =====
+-- ===== Высокая каменная стена по кругу (гладкая, со скруглённым верхом) =====
 local function buildWall(folder)
 	local wall = Instance.new("Folder")
 	wall.Name = "StoneWall"
@@ -148,68 +148,100 @@ local function buildWall(folder)
 	for i = 0, n - 1 do
 		local a = (i / n) * PI2
 		local pos = polar(WALL_R, a)
-		local cf = CFrame.lookAt(pos, pos + polar(1, a))
-		mk(wall, Enum.PartType.Block, Vector3.new(chord, height, 2), cf * CFrame.new(0, height / 2, 0), STONE, Enum.Material.Cobblestone)
-		mk(wall, Enum.PartType.Block, Vector3.new(chord + 0.1, 0.6, 2.6), cf * CFrame.new(0, height + 0.3, 0), STONE_LIGHT, Enum.Material.Concrete)
+		local cf = CFrame.lookAt(pos, pos + polar(1, a)) -- локальная X идёт вдоль стены
+		mk(wall, Enum.PartType.Block, Vector3.new(chord, height, 2.2), cf * CFrame.new(0, height / 2, 0), STONE, Enum.Material.SmoothPlastic)
+		-- скруглённый верх (лежачий цилиндр вдоль стены)
+		mk(wall, Enum.PartType.Cylinder, Vector3.new(chord + 0.1, 2.8, 2.8), cf * CFrame.new(0, height, 0), STONE_LIGHT, Enum.Material.SmoothPlastic)
+		-- скруглённый низ-цоколь
+		mk(wall, Enum.PartType.Cylinder, Vector3.new(chord + 0.1, 2.0, 2.0), cf * CFrame.new(0, 0.6, 0), STONE_LIGHT, Enum.Material.SmoothPlastic)
 		-- невидимое продолжение вверх: перепрыгнуть нельзя
-		local inv = mk(wall, Enum.PartType.Block, Vector3.new(chord, 30, 2), cf * CFrame.new(0, height + 15, 0), Color3.new(), Enum.Material.SmoothPlastic)
+		local inv = mk(wall, Enum.PartType.Block, Vector3.new(chord, 30, 2), cf * CFrame.new(0, height + 16, 0), Color3.new(), Enum.Material.SmoothPlastic)
 		inv.Transparency = 1
 		inv.CanQuery = false
 		if i % 4 == 0 then
-			mk(wall, Enum.PartType.Block, Vector3.new(3.2, height + 2, 3.2), cf * CFrame.new(0, (height + 2) / 2, 0), STONE:Lerp(Color3.new(0, 0, 0), 0.12), Enum.Material.Cobblestone)
-			mk(wall, Enum.PartType.Block, Vector3.new(3.8, 0.7, 3.8), cf * CFrame.new(0, height + 2.35, 0), STONE_LIGHT, Enum.Material.Concrete)
-			local lamp = ball(wall, 1.2, (cf * CFrame.new(0, height + 3.3, 0)).Position, Color3.fromRGB(255, 236, 190), Enum.Material.Neon)
-			noCollide(lamp)
+			cyl(wall, height + 2.5, 3.8, pos + Vector3.new(0, (height + 2.5) / 2, 0), STONE, Enum.Material.SmoothPlastic)
+			ball(wall, 3.6, pos + Vector3.new(0, height + 2.6, 0), STONE_LIGHT, Enum.Material.SmoothPlastic)
+			noCollide(ball(wall, 1.4, pos + Vector3.new(0, height + 4.6, 0), Color3.fromRGB(255, 236, 190), Enum.Material.Neon))
 		end
 	end
 end
 
--- ===== Современный фонтан =====
+-- ===== Современный фонтан: круглый бассейн, два яруса, каскад и дуги струй =====
 local function buildFountain(folder)
 	local f = Instance.new("Folder")
 	f.Name = "Fountain"
 	f.Parent = folder
 	local c = FOUNTAIN
-	local granite = Color3.fromRGB(58, 60, 66)
+	local granite = Color3.fromRGB(64, 68, 76)
+	local marble = Color3.fromRGB(242, 240, 236)
+	local waterColor = Color3.fromRGB(70, 175, 215)
 
-	cyl(f, 1.3, 15, c + Vector3.new(0, 0.65, 0), granite, Enum.Material.Granite)
-	local led = cyl(f, 0.14, 15.3, c + Vector3.new(0, 1.36, 0), Color3.fromRGB(110, 220, 255), Enum.Material.Neon)
-	noCollide(led)
-	local water = cyl(f, 0.3, 13.8, c + Vector3.new(0, 1.2, 0), Color3.fromRGB(60, 150, 200), Enum.Material.Glass)
-	water.Transparency = 0.3
-	water.Reflectance = 0.25
-	water.CanCollide = false
+	local function water(height, diameter, y)
+		local w = cyl(f, height, diameter, c + Vector3.new(0, y, 0), waterColor, Enum.Material.Glass)
+		w.Transparency = 0.25
+		w.Reflectance = 0.3
+		w.CanCollide = false
+		return w
+	end
 
-	-- скульптура: тонкий постамент и зеркальный шар
-	cyl(f, 3.4, 1.2, c + Vector3.new(0, 2.8, 0), granite, Enum.Material.Granite)
-	local orb = ball(f, 2.6, c + Vector3.new(0, 5.6, 0), Color3.fromRGB(220, 225, 232), Enum.Material.Metal)
-	orb.Reflectance = 0.55
+	-- бассейн: тёмное дно, вода, скруглённый белый бортик
+	cyl(f, 1.0, 20, c + Vector3.new(0, 0.5, 0), granite, Enum.Material.SmoothPlastic)
+	noCollide(cyl(f, 0.1, 19.2, c + Vector3.new(0, 1.02, 0), Color3.fromRGB(110, 230, 255), Enum.Material.Neon))
+	water(0.3, 18.8, 1.1)
+	local n = 40
+	local chord = 2 * 9.6 * math.sin(math.pi / n) + 0.15
+	for i = 0, n - 1 do
+		local a = (i / n) * PI2
+		local pos = c + polar(9.6, a) + Vector3.new(0, 1.3, 0)
+		mk(f, Enum.PartType.Cylinder, Vector3.new(chord, 1.2, 1.2), CFrame.lookAt(pos, pos + polar(1, a)), marble, Enum.Material.SmoothPlastic)
+	end
 
-	local function jet(pos, dir, rate, speed)
-		local e = mk(f, Enum.PartType.Block, Vector3.one * 0.5, CFrame.lookAt(pos, pos + dir), Color3.new(), Enum.Material.SmoothPlastic)
+	-- нижний ярус с водой сверху, верхняя чаша
+	cyl(f, 2.6, 7, c + Vector3.new(0, 1.3, 0), granite, Enum.Material.SmoothPlastic)
+	water(0.15, 6.4, 2.65)
+	cyl(f, 1.8, 2.6, c + Vector3.new(0, 3.5, 0), marble, Enum.Material.SmoothPlastic)
+	cyl(f, 0.5, 4.8, c + Vector3.new(0, 4.6, 0), marble, Enum.Material.SmoothPlastic)
+	water(0.12, 4.2, 4.86)
+
+	-- подсветка под водой
+	for i = 0, 3 do
+		local lp = noCollide(mk(f, Enum.PartType.Block, Vector3.one * 0.4, CFrame.new(c + polar(6, i * math.pi / 2) + Vector3.new(0, 1.1, 0)), Color3.new(), Enum.Material.SmoothPlastic))
+		lp.Transparency = 1
+		local light = Instance.new("PointLight")
+		light.Range = 12
+		light.Brightness = 1.5
+		light.Color = Color3.fromRGB(120, 220, 255)
+		light.Parent = lp
+	end
+
+	local function jet(pos, dir, rate, speed, size, life)
+		local e = noCollide(mk(f, Enum.PartType.Block, Vector3.one * 0.4, CFrame.lookAt(pos, pos + dir), Color3.new(), Enum.Material.SmoothPlastic))
 		e.Transparency = 1
-		noCollide(e)
 		local pe = Instance.new("ParticleEmitter")
 		pe.EmissionDirection = Enum.NormalId.Front
 		pe.Rate = rate
-		pe.Lifetime = NumberRange.new(0.9, 1.1)
-		pe.Speed = NumberRange.new(speed, speed + 2)
-		pe.SpreadAngle = Vector2.new(3, 3)
-		pe.Acceleration = Vector3.new(0, -32, 0)
-		pe.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.35), NumberSequenceKeypoint.new(1, 0.55) })
-		pe.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.2), NumberSequenceKeypoint.new(1, 1) })
-		pe.Color = ColorSequence.new(Color3.fromRGB(215, 240, 255))
-		pe.LightEmission = 0.3
+		pe.Lifetime = NumberRange.new(life or 0.9, (life or 0.9) + 0.2)
+		pe.Speed = NumberRange.new(speed, speed + 1.5)
+		pe.SpreadAngle = Vector2.new(2, 2)
+		pe.Acceleration = Vector3.new(0, -34, 0)
+		pe.Size = NumberSequence.new({ NumberSequenceKeypoint.new(0, size or 0.3), NumberSequenceKeypoint.new(1, (size or 0.3) * 1.8) })
+		pe.Transparency = NumberSequence.new({ NumberSequenceKeypoint.new(0, 0.15), NumberSequenceKeypoint.new(0.8, 0.5), NumberSequenceKeypoint.new(1, 1) })
+		pe.Color = ColorSequence.new(Color3.fromRGB(225, 245, 255))
+		pe.LightEmission = 0.35
 		pe.Parent = e
 	end
-	-- кольцо струй, бьющих дугой к шару
-	for i = 0, 9 do
-		local a = (i / 10) * PI2
-		local pos = c + polar(5.6, a) + Vector3.new(0, 1.4, 0)
-		local inward = -polar(1, a)
-		jet(pos, (inward * 0.42 + Vector3.new(0, 1, 0)).Unit, 45, 12)
+	-- центральная высокая струя
+	jet(c + Vector3.new(0, 5, 0), Vector3.new(0, 1, 0), 80, 17, 0.4, 1.0)
+	-- каскад с нижнего яруса
+	for i = 0, 7 do
+		local a = (i / 8) * PI2
+		jet(c + polar(3.4, a) + Vector3.new(0, 2.7, 0), (polar(1, a) + Vector3.new(0, 0.3, 0)).Unit, 30, 3, 0.35, 0.6)
 	end
-	jet(c + Vector3.new(0, 7, 0), Vector3.new(0, 1, 0), 60, 9)
+	-- дуги от бортика к центру
+	for i = 0, 11 do
+		local a = (i / 12) * PI2
+		jet(c + polar(8.8, a) + Vector3.new(0, 1.4, 0), (-polar(1, a) * 0.55 + Vector3.new(0, 1, 0)).Unit, 35, 11, 0.28, 0.9)
+	end
 end
 
 -- ===== Лавочки и фонари =====
@@ -258,16 +290,12 @@ local function buildFurniture(folder)
 	end
 
 	-- фонари вдоль дорожек и вокруг кольца
-	for _, deg in { 0, 45, 90, 135, 180, 225, 270, 315 } do
-		local a = math.rad(deg + 22.5)
+	for _, deg in { 0, 90, 180, 270 } do
+		local a = math.rad(deg + 45)
 		local pos = FOUNTAIN + polar(28.2, a)
 		lamp(f, pos, -polar(1, a))
 	end
-	for _, z in { 28, 38 } do
-		lamp(f, Vector3.new(-5.2, 0, z), Vector3.new(1, 0, 0))
-		lamp(f, Vector3.new(5.2, 0, z), Vector3.new(-1, 0, 0))
-	end
-	for _, x in { -44, -22, 0, 22, 44 } do
+	for _, x in { -44, 0, 44 } do
 		lamp(f, Vector3.new(x, 0, PAD_Z - 14), Vector3.new(0, 0, 1))
 	end
 end
@@ -396,9 +424,9 @@ local function buildRoad(folder)
 	for _, sx in { -1, 1 } do
 		local x = sx * (TUNNEL_X - 1)
 		for _, dz in { -14.5, 14.5 } do
-			box(f, Vector3.new(3, 16, 3), Vector3.new(x, 8, ROAD_Z + dz), STONE, Enum.Material.Cobblestone)
+			box(f, Vector3.new(3, 16, 3), Vector3.new(x, 8, ROAD_Z + dz), STONE, Enum.Material.SmoothPlastic)
 		end
-		box(f, Vector3.new(3.4, 3.6, 32.4), Vector3.new(x, 17.4, ROAD_Z), STONE, Enum.Material.Cobblestone)
+		box(f, Vector3.new(3.4, 3.6, 32.4), Vector3.new(x, 17.4, ROAD_Z), STONE, Enum.Material.SmoothPlastic)
 		box(f, Vector3.new(3.6, 0.6, 33), Vector3.new(x, 19.4, ROAD_Z), STONE_LIGHT, Enum.Material.Concrete)
 	end
 end
@@ -438,7 +466,7 @@ local function buildPads(folder)
 			Enum.PartType.Cylinder,
 			Vector3.new(0.3, radius * 2, radius * 2),
 			CFrame.new(x, 0.38, z) * CFrame.Angles(0, 0, math.rad(90)),
-			Color3.fromRGB(90, 220, 120),
+			Color3.fromRGB(255, 205, 40),
 			Enum.Material.Neon
 		)
 		pad.Name = "Pad" .. i
@@ -487,18 +515,25 @@ local function buildPads(folder)
 		gui.AlwaysOnTop = true
 		gui.MaxDistance = 400
 		gui.LightInfluence = 0
+		gui.Brightness = 2
 		gui.Parent = anchor
 
 		local label = Instance.new("TextLabel")
 		label.Size = UDim2.fromScale(1, 1)
 		label.BackgroundTransparency = 1
 		label.TextColor3 = Color3.new(1, 1, 1)
-		label.TextStrokeColor3 = Color3.new(0, 0, 0)
-		label.TextStrokeTransparency = 0
+		label.TextStrokeTransparency = 1
 		label.Font = Enum.Font.FredokaOne
 		label.TextScaled = true
 		label.Text = ""
 		label.Parent = gui
+		-- неоновое свечение вокруг букв
+		local glowStroke = Instance.new("UIStroke")
+		glowStroke.Name = "Glow"
+		glowStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+		glowStroke.Thickness = 3
+		glowStroke.Color = Color3.fromRGB(255, 160, 0)
+		glowStroke.Parent = label
 
 		local function setBarrier(mode, color)
 			pad.Color = color
@@ -528,8 +563,8 @@ local function buildSafety(folder)
 	local spawn = Instance.new("SpawnLocation")
 	spawn.Name = "HubSpawn"
 	spawn.Anchored = true
-	spawn.Size = Vector3.new(9, 0.3, 9)
-	spawn.CFrame = CFrame.new(SPAWN + Vector3.new(0, 0.15, 0))
+	spawn.Size = Vector3.new(10, 0.5, 10)
+	spawn.CFrame = CFrame.new(SPAWN + Vector3.new(0, 0.25, 0))
 	spawn.Neutral = true
 	spawn.Duration = 0
 	spawn.Color = Color3.fromRGB(236, 236, 232)
@@ -537,12 +572,12 @@ local function buildSafety(folder)
 	spawn.TopSurface = Enum.SurfaceType.Smooth
 	spawn.Parent = folder
 	for _, e in {
-		{ Vector3.new(9.4, 0.12, 0.4), Vector3.new(0, 0, 4.5) },
-		{ Vector3.new(9.4, 0.12, 0.4), Vector3.new(0, 0, -4.5) },
-		{ Vector3.new(0.4, 0.12, 9.4), Vector3.new(4.5, 0, 0) },
-		{ Vector3.new(0.4, 0.12, 9.4), Vector3.new(-4.5, 0, 0) },
+		{ Vector3.new(10.6, 0.2, 0.6), Vector3.new(0, 0, 5) },
+		{ Vector3.new(10.6, 0.2, 0.6), Vector3.new(0, 0, -5) },
+		{ Vector3.new(0.6, 0.2, 10.6), Vector3.new(5, 0, 0) },
+		{ Vector3.new(0.6, 0.2, 10.6), Vector3.new(-5, 0, 0) },
 	} do
-		noCollide(box(folder, e[1], SPAWN + e[2] + Vector3.new(0, 0.33, 0), Color3.fromRGB(110, 200, 255), Enum.Material.Neon))
+		noCollide(box(folder, e[1], SPAWN + e[2] + Vector3.new(0, 0.55, 0), Color3.fromRGB(110, 200, 255), Enum.Material.Neon))
 	end
 end
 
@@ -553,6 +588,25 @@ function Hub.build()
 
 	buildSafety(folder)
 	buildTerrain()
+
+	-- Поверхность террейна оказывается не ровно на y=0, поэтому меряем её лучом
+	-- и ставим всё лобби ровно на землю (иначе круги, лавочки и колёса тонут).
+	local params = RaycastParams.new()
+	params.FilterType = Enum.RaycastFilterType.Include
+	params.FilterDescendantsInstances = { terrain }
+	local hit = Workspace:Raycast(Vector3.new(SPAWN.X, 120, SPAWN.Z), Vector3.new(0, -240, 0), params)
+	local groundY = hit and hit.Position.Y or 0
+	Workspace:SetAttribute("HubGroundY", groundY)
+	-- спавн и страховочный пол поднимаем сразу
+	for _, d in folder:GetDescendants() do
+		if d:IsA("BasePart") then
+			d.CFrame += Vector3.new(0, groundY, 0)
+		end
+	end
+	local built = {}
+	for _, d in folder:GetChildren() do
+		built[d] = true
+	end
 	local houseSpots = Scenery.buildTown(folder, rng)
 	buildWall(folder)
 	buildFountain(folder)
@@ -560,6 +614,22 @@ function Hub.build()
 	buildRoad(folder)
 	buildGreenery(folder, houseSpots)
 	buildPads(folder)
+
+	for _, child in folder:GetChildren() do
+		if not built[child] then
+			for _, d in child:GetDescendants() do
+				if d:IsA("BasePart") then
+					d.CFrame += Vector3.new(0, groundY, 0)
+				end
+			end
+			if child:IsA("BasePart") then
+				child.CFrame += Vector3.new(0, groundY, 0)
+			end
+		end
+	end
+	for _, pad in Hub.pads do
+		pad.center += Vector3.new(0, groundY, 0)
+	end
 
 	return Hub.pads
 end

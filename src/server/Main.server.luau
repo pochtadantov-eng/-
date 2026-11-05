@@ -44,47 +44,53 @@ end
 
 Economy.start()
 
--- Солнечный день
+-- Солнечный день в «игрушечном» стиле: мягкие тени, яркие сочные цвета, лёгкая дымка
 Lighting.ClockTime = 14
-Lighting.GeographicLatitude = 35
-Lighting.Brightness = 3
-Lighting.ExposureCompensation = 0.2
-Lighting.Ambient = Color3.fromRGB(95, 105, 115)
-Lighting.OutdoorAmbient = Color3.fromRGB(120, 130, 140)
+Lighting.GeographicLatitude = 30
+Lighting.Brightness = 2.6
+Lighting.ExposureCompensation = 0.15
+Lighting.Ambient = Color3.fromRGB(120, 125, 135)
+Lighting.OutdoorAmbient = Color3.fromRGB(150, 155, 165)
 Lighting.EnvironmentDiffuseScale = 1
-Lighting.EnvironmentSpecularScale = 1
+Lighting.EnvironmentSpecularScale = 0.5
+Lighting.ShadowSoftness = 0.6
 
 local atmosphere = Instance.new("Atmosphere")
-atmosphere.Density = 0.2
-atmosphere.Offset = 0.15
-atmosphere.Color = Color3.fromRGB(199, 215, 235)
-atmosphere.Decay = Color3.fromRGB(150, 170, 200)
-atmosphere.Glare = 0.3
-atmosphere.Haze = 0.6
+atmosphere.Density = 0.14
+atmosphere.Offset = 0.2
+atmosphere.Color = Color3.fromRGB(205, 220, 240)
+atmosphere.Decay = Color3.fromRGB(160, 180, 210)
+atmosphere.Glare = 0.2
+atmosphere.Haze = 0.5
 atmosphere.Parent = Lighting
 
 local sky = Instance.new("Sky")
 sky.Parent = Lighting
 
 local sunRays = Instance.new("SunRaysEffect")
-sunRays.Intensity = 0.12
-sunRays.Spread = 0.8
+sunRays.Intensity = 0.08
+sunRays.Spread = 0.7
 sunRays.Parent = Lighting
 
 local bloom = Instance.new("BloomEffect")
-bloom.Intensity = 0.3
-bloom.Size = 24
-bloom.Threshold = 1.8
+bloom.Intensity = 0.5
+bloom.Size = 28
+bloom.Threshold = 1.4
 bloom.Parent = Lighting
 
 local color = Instance.new("ColorCorrectionEffect")
-color.Saturation = 0.12
-color.Contrast = 0.06
+color.Saturation = 0.25
+color.Contrast = 0.04
+color.Brightness = 0.02
+color.TintColor = Color3.fromRGB(255, 250, 242)
 color.Parent = Lighting
 
+-- без «реалистичной» травы-лезвий: чище и мультяшнее, ничего не прячет предметы
+Workspace.Terrain.Decoration = false
+
 local clouds = Instance.new("Clouds")
-clouds.Cover = 0.5
-clouds.Density = 0.6
+clouds.Cover = 0.45
+clouds.Density = 0.55
 clouds.Parent = Workspace.Terrain
 
 -- Лес генерируется в фоне, пока строится хаб и игроки в нём

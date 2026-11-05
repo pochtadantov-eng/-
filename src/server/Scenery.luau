@@ -64,7 +64,7 @@ local function house(parent, cf, rng)
 	local wallH = floors * floorH
 	local wallColor = pick(rng, WALL_COLORS)
 	local isBrick = wallColor == WALL_COLORS[7]
-	local wallMat = isBrick and Enum.Material.Brick or Enum.Material.SmoothPlastic
+	local wallMat = isBrick and Enum.Material.SmoothPlastic or Enum.Material.SmoothPlastic
 	local roofColor = pick(rng, ROOF_COLORS)
 
 	local m = Instance.new("Model")
@@ -90,10 +90,10 @@ local function house(parent, cf, rng)
 			Vector3.new(W + 1.8, 0.4, L + 0.2),
 			CFrame.new(0, top + RH / 2 + 0.2, side * s / 2) * CFrame.Angles(side * theta, 0, 0),
 			roofColor,
-			Enum.Material.Slate
+			Enum.Material.SmoothPlastic
 		)
 	end
-	part(Vector3.new(W + 1.9, 0.35, 0.6), CFrame.new(0, top + RH + 0.4, 0), roofColor:Lerp(Color3.new(0, 0, 0), 0.25), Enum.Material.Slate)
+	part(Vector3.new(W + 1.9, 0.35, 0.6), CFrame.new(0, top + RH + 0.4, 0), roofColor:Lerp(Color3.new(0, 0, 0), 0.25), Enum.Material.SmoothPlastic)
 
 	-- фронтоны (треугольные торцы) ступеньками
 	local N = 8
@@ -133,14 +133,14 @@ local function house(parent, cf, rng)
 	end
 
 	-- труба
-	part(Vector3.new(1.6, RH + 2.4, 1.6), CFrame.new(W / 2 - 2.6, top + (RH + 2.4) / 2, 0), Color3.fromRGB(150, 82, 62), Enum.Material.Brick)
+	part(Vector3.new(1.6, RH + 2.4, 1.6), CFrame.new(W / 2 - 2.6, top + (RH + 2.4) / 2, 0), Color3.fromRGB(150, 82, 62), Enum.Material.SmoothPlastic)
 	part(Vector3.new(2.0, 0.3, 2.0), CFrame.new(W / 2 - 2.6, top + RH + 2.5, 0), Color3.fromRGB(110, 110, 112), Enum.Material.Concrete)
 
 	-- гараж
 	if rng:NextNumber() < 0.55 then
 		local gx = -(W / 2 + 3.6)
 		part(Vector3.new(7.2, 4.4, D - 2), CFrame.new(gx, 0.7 + 2.2, -1), wallColor, wallMat)
-		part(Vector3.new(7.8, 0.4, D - 1.4), CFrame.new(gx, 0.7 + 4.6, -1), roofColor:Lerp(Color3.new(0, 0, 0), 0.2), Enum.Material.Slate)
+		part(Vector3.new(7.8, 0.4, D - 1.4), CFrame.new(gx, 0.7 + 4.6, -1), roofColor:Lerp(Color3.new(0, 0, 0), 0.2), Enum.Material.SmoothPlastic)
 		part(Vector3.new(5.6, 3.3, 0.15), CFrame.new(gx, 0.7 + 1.65, D / 2 - 2 + 0.1), Color3.fromRGB(225, 225, 222), Enum.Material.Metal)
 		for k = 1, 3 do
 			part(Vector3.new(5.6, 0.1, 0.1), CFrame.new(gx, 0.7 + k * 0.85, D / 2 - 2 + 0.2), Color3.fromRGB(150, 150, 150), Enum.Material.Metal)

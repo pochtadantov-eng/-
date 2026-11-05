@@ -13,6 +13,12 @@ local camera = Workspace.CurrentCamera
 
 local rng = Random.new()
 
+-- высота земли в хабе (сервер меряет её лучом после постройки)
+while Workspace:GetAttribute("HubGroundY") == nil do
+	task.wait(0.2)
+end
+local HUB_Y = Workspace:GetAttribute("HubGroundY")
+
 -- ===== Зона, где сейчас игрок =====
 local function currentZone()
 	local char = player.Character
@@ -106,7 +112,7 @@ local birdColors = {
 	{ Color3.fromRGB(112, 84, 60), Color3.fromRGB(70, 52, 38) }, -- воробей
 	{ Color3.fromRGB(96, 104, 118), Color3.fromRGB(60, 66, 78) }, -- голубь
 }
-for i = 1, 10 do
+for i = 1, 14 do
 	local c = birdColors[rng:NextInteger(1, #birdColors)]
 	local model = Instance.new("Model")
 	model.Name = "Bird" .. i
@@ -120,14 +126,15 @@ for i = 1, 10 do
 		wingInR = bodyPart(model, Enum.PartType.Block, Vector3.new(0.9, 0.05, 0.55), c[1]),
 		wingOutL = bodyPart(model, Enum.PartType.Block, Vector3.new(0.85, 0.04, 0.4), c[2]),
 		wingOutR = bodyPart(model, Enum.PartType.Block, Vector3.new(0.85, 0.04, 0.4), c[2]),
-		radius = rng:NextNumber(25, 60),
-		height = rng:NextNumber(28, 50),
+		-- половина кружит над лобби, половина над лесом (не за игроком)
+		home = i % 2 == 0 and Vector3.new(0, HUB_Y, -10) or (Config.FOREST_ORIGIN + Vector3.new(0, 20, 0)),
+		radius = rng:NextNumber(25, 70),
+		height = rng:NextNumber(30, 55),
 		speed = rng:NextNumber(0.25, 0.45) * (rng:NextNumber() < 0.5 and -1 or 1),
 		phase = rng:NextNumber(0, math.pi * 2),
 	}
 end
 
-local center = Vector3.new(0, 0, 0)
 
 -- ===== Машины на дороге =====
 local BLOCK, BALL, CYL = Enum.PartType.Block, Enum.PartType.Ball, Enum.PartType.Cylinder
@@ -331,9 +338,6 @@ RunService.RenderStepped:Connect(function(dt)
 	local t = os.clock() - t0
 	local zone = currentZone()
 
-	-- Птицы кружат над тем местом, куда смотрит камера
-	local focus = camera.Focus.Position
-	center = center:Lerp(Vector3.new(focus.X, 0, focus.Z), math.clamp(dt * 2, 0, 1))
 	local parts, cframes = {}, {}
 	local function put(part, cf)
 		table.insert(parts, part)
@@ -342,7 +346,7 @@ RunService.RenderStepped:Connect(function(dt)
 	for _, b in birds do
 		local a = b.phase + t * b.speed
 		local dir = b.speed > 0 and 1 or -1
-		local pos = center + Vector3.new(math.cos(a) * b.radius, b.height + math.sin(t * 0.5 + b.phase) * 4, math.sin(a) * b.radius)
+		local pos = b.home + Vector3.new(math.cos(a) * b.radius, b.height + math.sin(t * 0.5 + b.phase) * 4, math.sin(a) * b.radius)
 		local tangent = Vector3.new(-math.sin(a), 0, math.cos(a)) * dir
 		-- крен внутрь поворота и лёгкий наклон носом при наборе высоты
 		local cf = CFrame.lookAt(pos, pos + tangent) * CFrame.Angles(math.cos(t * 0.5 + b.phase) * 0.08, 0, -0.32 * dir)
@@ -371,7 +375,7 @@ RunService.RenderStepped:Connect(function(dt)
 	for _, car in cars do
 		local travelled = car.offset + car.speed * t
 		local x = (travelled % LANE_LENGTH) - LANE_LENGTH / 2
-		local carCF = CFrame.new(car.dir * x, 0, car.laneZ)
+		local carCF = CFrame.new(car.dir * x, HUB_Y, car.laneZ)
 		if car.dir == -1 then
 			carCF = carCF * CFrame.Angles(0, math.pi, 0)
 		end

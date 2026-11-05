@@ -69,6 +69,18 @@ local function text(parent, str, pos, size, textSize, color)
 	return l
 end
 
+-- толстая чёрная обводка букв, как в популярных играх
+local function chunky(label, thickness)
+	label.TextStrokeTransparency = 1
+	local st = Instance.new("UIStroke")
+	st.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+	st.Color = BLACK
+	st.Thickness = thickness or 3
+	st.LineJoinMode = Enum.LineJoinMode.Round
+	st.Parent = label
+	return label
+end
+
 local function button(parent, str, pos, size, color, textSize)
 	local b = Instance.new("TextButton")
 	b.Position = pos
@@ -164,11 +176,18 @@ local function itemCard(parent, name, rarity, icon, desc)
 	return c
 end
 
--- ===== Монеты (слева снизу) =====
-local coinsLabel = text(gui, "💰 0", UDim2.new(0, 24, 1, -78), UDim2.fromOffset(260, 56), 44, YELLOW)
+-- ===== Деньги (слева снизу, как в примере: пачка купюр и зелёная сумма) =====
+local money = Instance.new("Frame")
+money.BackgroundTransparency = 1
+money.Position = UDim2.new(0, 22, 1, -96)
+money.Size = UDim2.fromOffset(320, 76)
+money.Parent = gui
+local moneyIcon = text(money, "💵", UDim2.fromOffset(0, 0), UDim2.fromOffset(76, 76), 60)
+moneyIcon.TextStrokeTransparency = 1
+local coinsLabel = chunky(text(money, "$0", UDim2.fromOffset(84, 0), UDim2.new(1, -84, 1, 0), 60, Color3.fromRGB(120, 255, 80)), 4)
 coinsLabel.TextXAlignment = Enum.TextXAlignment.Left
 local function refreshCoins()
-	coinsLabel.Text = "💰 " .. tostring(player:GetAttribute("Coins") or 0)
+	coinsLabel.Text = "$" .. tostring(player:GetAttribute("Coins") or 0)
 end
 player:GetAttributeChangedSignal("Coins"):Connect(refreshCoins)
 refreshCoins()
@@ -230,29 +249,37 @@ local side = Instance.new("Frame")
 side.BackgroundTransparency = 1
 side.AnchorPoint = Vector2.new(0, 0.5)
 side.Position = UDim2.new(0, 22, 0.5, -20)
-side.Size = UDim2.fromOffset(110, 250)
+side.Size = UDim2.fromOffset(120, 280)
 side.Parent = gui
 
-local function sideButton(icon, label, y, color, window)
+-- Тёмная скруглённая плитка с большой иконкой и подписью, налезающей на нижний край
+local function sideButton(icon, label, y, labelColor, window)
 	local b = Instance.new("TextButton")
-	b.Size = UDim2.fromOffset(100, 100)
+	b.Size = UDim2.fromOffset(104, 104)
 	b.Position = UDim2.fromOffset(4, y)
-	b.BackgroundColor3 = Color3.fromRGB(50, 52, 62)
+	b.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
 	b.Text = ""
 	b.AutoButtonColor = true
 	b.Parent = side
-	corner(b, 20)
+	corner(b, 24)
 	outline(b, 4)
-	local inner = Instance.new("Frame")
-	inner.Size = UDim2.new(1, -14, 1, -14)
-	inner.Position = UDim2.fromOffset(7, 7)
-	inner.BackgroundColor3 = color
-	inner.Parent = b
-	corner(inner, 16)
-	shine(inner)
-	local ic = text(inner, icon, UDim2.fromOffset(0, 0), UDim2.new(1, 0, 1, -12), 50)
+	local g = Instance.new("UIGradient")
+	g.Color = ColorSequence.new(Color3.fromRGB(78, 80, 92), Color3.fromRGB(36, 38, 46))
+	g.Rotation = 90
+	g.Parent = b
+
+	local bevel = Instance.new("Frame")
+	bevel.Size = UDim2.new(1, -12, 1, -12)
+	bevel.Position = UDim2.fromOffset(6, 6)
+	bevel.BackgroundTransparency = 1
+	bevel.Parent = b
+	corner(bevel, 19)
+	outline(bevel, 2, Color3.fromRGB(120, 122, 136))
+
+	local ic = text(b, icon, UDim2.fromOffset(0, -6), UDim2.new(1, 0, 1, 0), 64)
 	ic.TextStrokeTransparency = 1
-	text(b, label, UDim2.new(0, -10, 1, -26), UDim2.new(1, 20, 0, 30), 24)
+	chunky(text(b, label, UDim2.new(0, -16, 1, -26), UDim2.new(1, 32, 0, 36), 30, labelColor), 3)
+
 	b.Activated:Connect(function()
 		local open = not window.Visible
 		boostsWindow.Visible = false
@@ -261,8 +288,8 @@ local function sideButton(icon, label, y, color, window)
 	end)
 	return b
 end
-sideButton("🛒", "Магазин", 0, MAGENTA, shopWindow)
-sideButton("⚡", "Усиления", 128, ORANGE, boostsWindow)
+sideButton("🛒", "Магазин", 0, Color3.fromRGB(255, 190, 80), shopWindow)
+sideButton("⚡", "Усиления", 140, Color3.fromRGB(255, 235, 90), boostsWindow)
 
 -- ===== Создание лобби (по центру) =====
 local setup = frame(gui, UDim2.fromOffset(420, 440), Vector2.new(0.5, 0.5), UDim2.fromScale(0.5, 0.5))
@@ -353,8 +380,7 @@ timerFrame.Position = UDim2.new(0.5, 0, 0, 70)
 timerFrame.Size = UDim2.fromOffset(420, 150)
 timerFrame.Visible = false
 timerFrame.Parent = gui
-local timerLabel = text(timerFrame, "", UDim2.new(), UDim2.new(1, 0, 0, 70), 54, YELLOW)
-local skipBtn = button(timerFrame, "Пропустить", UDim2.fromOffset(90, 80), UDim2.fromOffset(240, 56), ORANGE, 28)
+local skipBtn = button(timerFrame, "Пропустить", UDim2.fromOffset(90, 0), UDim2.fromOffset(240, 60), ORANGE, 30)
 skipBtn.Activated:Connect(function()
 	Remotes.LobbyAction:FireServer("StartNow")
 end)
@@ -419,8 +445,8 @@ local function render()
 	local s = state.state
 	setup.Visible = s == "setup" and state.isOwner == true
 	lobby.Visible = s == "open"
-	timerFrame.Visible = s == "countdown"
-	skipBtn.Visible = state.isOwner == true
+	-- «Отправка через N» пишется только над кругом, на экране — лишь кнопка для владельца
+	timerFrame.Visible = s == "countdown" and state.isOwner == true
 
 	if s == "setup" and state.isOwner then
 		-- сразу показать над кругом выбранное число игроков
@@ -450,19 +476,12 @@ task.spawn(function()
 		local root = char and char:FindFirstChild("HumanoidRootPart")
 		local inHub = root ~= nil and math.abs(root.Position.X) < 2000
 		side.Visible = inHub
-		coinsLabel.Visible = inHub
+		money.Visible = inHub
 		if not inHub then
 			boostsWindow.Visible = false
 			shopWindow.Visible = false
 		end
 		task.wait(0.5)
-	end
-end)
-
-RunService.RenderStepped:Connect(function()
-	if state.state == "countdown" and state.countdownEnd then
-		local left = math.max(0, math.ceil(state.countdownEnd - workspace:GetServerTimeNow()))
-		timerLabel.Text = "Отправка через " .. left
 	end
 end)
 
