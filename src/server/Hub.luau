@@ -8,6 +8,7 @@ local PhysicsService = game:GetService("PhysicsService")
 local Config = require(ReplicatedStorage.Shared.Config)
 local Forest = require(script.Parent.Forest)
 local Scenery = require(script.Parent.Scenery)
+local ShopStall = require(script.Parent.ShopStall)
 
 local Hub = { pads = {} }
 
@@ -21,6 +22,7 @@ local ROAD_HALF = TUNNEL_X + 60
 local FOUNTAIN = Vector3.new(0, 0, 10)
 local SPAWN = Vector3.new(0, 0, 42)
 local PAD_Z = -24
+local STALL_POS = Vector3.new(46, 0, 10) -- прилавок в конце дорожки справа от фонтана
 local PI2 = math.pi * 2
 
 local STONE = Color3.fromRGB(150, 146, 138)
@@ -75,6 +77,9 @@ end
 
 -- Место занято дорожкой/площадкой? (чтобы не ставить туда деревья)
 local function onPath(x, z)
+	if x > STALL_POS.X - 12 and x < STALL_POS.X + 8 and math.abs(z - STALL_POS.Z) < 13 then
+		return true
+	end
 	if math.abs(x) < 6 and z > PAD_Z and z < SPAWN.Z + 10 then
 		return true
 	end
@@ -622,7 +627,7 @@ function Hub.build()
 	Workspace:SetAttribute("HubGroundY", groundY)
 	-- спавн и страховочный пол поднимаем сразу
 	for _, d in folder:GetDescendants() do
-		if d:IsA("BasePart") then
+		if d:IsA("BasePart") and d.Anchored then
 			d.CFrame += Vector3.new(0, groundY, 0)
 		end
 	end
@@ -637,15 +642,19 @@ function Hub.build()
 	buildRoad(folder)
 	buildGreenery(folder, houseSpots)
 	buildPads(folder)
+	local stallCF = CFrame.lookAt(STALL_POS, STALL_POS + Vector3.new(-1, 0, 0))
+	pcall(function()
+		ShopStall.build(folder, stallCF)
+	end)
 
 	for _, child in folder:GetChildren() do
 		if not built[child] then
 			for _, d in child:GetDescendants() do
-				if d:IsA("BasePart") then
+				if d:IsA("BasePart") and d.Anchored then
 					d.CFrame += Vector3.new(0, groundY, 0)
 				end
 			end
-			if child:IsA("BasePart") then
+			if child:IsA("BasePart") and child.Anchored then
 				child.CFrame += Vector3.new(0, groundY, 0)
 			end
 		end
@@ -653,6 +662,9 @@ function Hub.build()
 	for _, pad in Hub.pads do
 		pad.center += Vector3.new(0, groundY, 0)
 	end
+	-- где кольцо магазина (клиент открывает магазин, когда игрок в него заходит)
+	Workspace:SetAttribute("ShopRing", stallCF:PointToWorldSpace(ShopStall.RING_LOCAL) + Vector3.new(0, groundY, 0))
+	Workspace:SetAttribute("ShopRingRadius", ShopStall.RING_RADIUS)
 
 	return Hub.pads
 end

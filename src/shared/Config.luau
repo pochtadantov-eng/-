@@ -1,7 +1,7 @@
 local Config = {}
 
 -- Номер версии виден в правом нижнем углу экрана — так видно, что запущен свежий код
-Config.VERSION = "15"
+Config.VERSION = "16"
 
 -- Лобби
 Config.PAD_COUNT = 4
@@ -76,8 +76,10 @@ Config.RARITY_COLORS = {
 -- Картинки для интерфейса (как в популярных играх). Вставь ID картинки из Toolbox -> Images
 -- (правой кнопкой -> Copy Asset ID), только число. Пусто = нарисованная кодом иконка.
 Config.UI_ICONS = {
-	shop = "", -- кнопка «Магазин»
-	boosts = "", -- кнопка «Усиления»
+	shopButton = "", -- картинка всей кнопки «Магазин» (assets/ui/button_shop.png)
+	inventoryButton = "", -- картинка всей кнопки «Инвентарь» (assets/ui/button_inventory.png)
+	shop = "",
+	boosts = "",
 	money = "", -- значок денег слева снизу
 	health = "", -- сердечко у полоски здоровья
 }

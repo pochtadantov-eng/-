@@ -286,33 +286,50 @@ local function showToast(str, color)
 	end)
 end
 
--- ===== Окно «Усиления» =====
-local boostsWindow, boostsList = windowFrame("Усиления", Color3.fromRGB(240, 140, 30))
-local boostCounts = {}
-for i, b in Config.BOOSTS do
-	local card = itemCard(boostsList, b.name, b.rarity, b.icon, b.desc)
+-- ===== Окно «Магазин»: здесь покупают предметы для выживания =====
+local shopWindow, shopList = windowFrame("Магазин", Color3.fromRGB(230, 50, 60))
+for i, item in Config.BOOSTS do
+	local card = itemCard(shopList, item.name, item.rarity, item.icon, item.desc)
 	card.LayoutOrder = i
 	local owned = text(card, "", UDim2.fromOffset(0, 226), UDim2.new(1, 0, 0, 24), 18)
-	boostCounts[b.id] = owned
-	local buy = button(card, "💰 " .. b.price, UDim2.new(0, 14, 1, -70), UDim2.new(1, -28, 0, 54), RED, 30)
+	local buy = button(card, "💰 " .. item.price, UDim2.new(0, 14, 1, -70), UDim2.new(1, -28, 0, 54), RED, 30)
 	buy.Activated:Connect(function()
-		Remotes.Shop:FireServer("BuyBoost", b.id)
+		Remotes.Shop:FireServer("BuyBoost", item.id)
 	end)
 	local function refresh()
-		owned.Text = "У тебя: " .. tostring(player:GetAttribute("Boost_" .. b.id) or 0)
+		owned.Text = "У тебя: " .. tostring(player:GetAttribute("Boost_" .. item.id) or 0)
 	end
-	player:GetAttributeChangedSignal("Boost_" .. b.id):Connect(refresh)
+	player:GetAttributeChangedSignal("Boost_" .. item.id):Connect(refresh)
 	refresh()
 end
 
--- ===== Окно «Магазин» =====
-local shopWindow, shopList = windowFrame("Магазин", MAGENTA)
-for i, s in Config.SHOP_SOON do
-	local card = itemCard(shopList, s.name, "Скоро", s.icon, "Появится в следующих обновлениях")
-	card.LayoutOrder = i
-	local soon = button(card, "Скоро", UDim2.new(0, 14, 1, -70), UDim2.new(1, -28, 0, 54), GRAY, 28)
-	soon.AutoButtonColor = false
+-- ===== Окно «Инвентарь»: то, что у тебя уже есть =====
+local boostsWindow, invList = windowFrame("Инвентарь", Color3.fromRGB(40, 120, 230))
+local invEmpty = text(boostsWindow, "Пусто. Загляни в магазин!", UDim2.new(0, 0, 0.5, -20), UDim2.new(1, 0, 0, 40), 30)
+invEmpty.ZIndex = 21
+local function rebuildInventory()
+	for _, c in invList:GetChildren() do
+		if c:IsA("Frame") then
+			c:Destroy()
+		end
+	end
+	local any = false
+	for i, item in Config.BOOSTS do
+		local count = player:GetAttribute("Boost_" .. item.id) or 0
+		if count > 0 then
+			any = true
+			local card = itemCard(invList, item.name, item.rarity, item.icon, item.desc)
+			card.LayoutOrder = i
+			local badge = button(card, "x" .. count, UDim2.new(0, 14, 1, -70), UDim2.new(1, -28, 0, 54), BLUE, 32)
+			badge.AutoButtonColor = false
+		end
+	end
+	invEmpty.Visible = not any
 end
+for _, item in Config.BOOSTS do
+	player:GetAttributeChangedSignal("Boost_" .. item.id):Connect(rebuildInventory)
+end
+rebuildInventory()
 
 Remotes.Shop.OnClientEvent:Connect(function(kind, ok, message)
 	if kind == "Result" then
@@ -320,116 +337,182 @@ Remotes.Shop.OnClientEvent:Connect(function(kind, ok, message)
 	end
 end)
 
--- ===== Кнопки слева: «Магазин» и ниже «Усиления» =====
+local function openWindow(window)
+	local open = not window.Visible
+	boostsWindow.Visible = false
+	shopWindow.Visible = false
+	window.Visible = open
+end
+
+-- ===== Кнопки слева: «Магазин» и «Инвентарь» (таблетки как на картинке) =====
 local side = Instance.new("Frame")
 side.BackgroundTransparency = 1
 side.AnchorPoint = Vector2.new(0, 0.5)
-side.Position = UDim2.new(0, 22, 0.5, -20)
-side.Size = UDim2.fromOffset(124, 300)
+side.Position = UDim2.new(0, 16, 0.5, -30)
+side.Size = UDim2.fromOffset(270, 200)
 side.Parent = gui
 
--- Иконка корзины из фигур (эмодзи корзины в Roblox рисуется серым)
-local function basketIcon(parent)
-	local holder = Instance.new("Frame")
-	holder.BackgroundTransparency = 1
-	holder.AnchorPoint = Vector2.new(0.5, 0.5)
-	holder.Position = UDim2.fromScale(0.5, 0.47)
-	holder.Size = UDim2.fromScale(0.72, 0.62)
-	holder.ZIndex = 3
-	holder.Parent = parent
+local function shopIcon(parent)
+	local h = Instance.new("Frame")
+	h.BackgroundTransparency = 1
+	h.Size = UDim2.fromScale(1, 1)
+	h.ZIndex = 4
+	h.Parent = parent
+	-- домик с витриной
+	local house = Instance.new("Frame")
+	house.AnchorPoint = Vector2.new(0.5, 1)
+	house.Position = UDim2.fromScale(0.5, 0.92)
+	house.Size = UDim2.fromScale(0.74, 0.5)
+	house.BackgroundColor3 = Color3.fromRGB(245, 245, 250)
+	house.ZIndex = 4
+	house.Parent = h
+	corner(house, 8)
+	outline(house, 3, Color3.fromRGB(90, 20, 30))
+	local glass = Instance.new("Frame")
+	glass.AnchorPoint = Vector2.new(0.5, 0.5)
+	glass.Position = UDim2.fromScale(0.5, 0.52)
+	glass.Size = UDim2.fromScale(0.7, 0.55)
+	glass.BackgroundColor3 = Color3.fromRGB(80, 190, 255)
+	glass.ZIndex = 5
+	glass.Parent = house
+	corner(glass, 4)
+	outline(glass, 2, Color3.fromRGB(30, 90, 160))
+	-- полосатый навес
+	local awning = Instance.new("Frame")
+	awning.AnchorPoint = Vector2.new(0.5, 0)
+	awning.Position = UDim2.fromScale(0.5, 0.1)
+	awning.Size = UDim2.fromScale(0.9, 0.36)
+	awning.BackgroundTransparency = 1
+	awning.ClipsDescendants = false
+	awning.ZIndex = 6
+	awning.Parent = h
+	for i = 0, 4 do
+		local stripe = Instance.new("Frame")
+		stripe.Position = UDim2.fromScale(i * 0.2, 0)
+		stripe.Size = UDim2.fromScale(0.2, 1)
+		stripe.BackgroundColor3 = (i % 2 == 0) and Color3.fromRGB(240, 50, 60) or Color3.fromRGB(250, 245, 245)
+		stripe.ZIndex = 6
+		stripe.Parent = awning
+		corner(stripe, 8)
+		outline(stripe, 2, Color3.fromRGB(90, 20, 30))
+	end
+end
 
+local function backpackIcon(parent)
+	local h = Instance.new("Frame")
+	h.BackgroundTransparency = 1
+	h.Size = UDim2.fromScale(1, 1)
+	h.ZIndex = 4
+	h.Parent = parent
 	local handle = Instance.new("Frame")
-	handle.BackgroundTransparency = 1
 	handle.AnchorPoint = Vector2.new(0.5, 0)
-	handle.Position = UDim2.fromScale(0.5, 0)
-	handle.Size = UDim2.fromScale(0.62, 0.75)
-	handle.ZIndex = 3
-	handle.Parent = holder
+	handle.Position = UDim2.fromScale(0.5, 0.04)
+	handle.Size = UDim2.fromScale(0.38, 0.3)
+	handle.BackgroundTransparency = 1
+	handle.ZIndex = 4
+	handle.Parent = h
 	corner(handle, 100)
-	outline(handle, 7, Color3.fromRGB(60, 62, 72))
-
+	outline(handle, 6, Color3.fromRGB(20, 60, 150))
 	local body = Instance.new("Frame")
 	body.AnchorPoint = Vector2.new(0.5, 1)
-	body.Position = UDim2.fromScale(0.5, 1)
-	body.Size = UDim2.fromScale(1, 0.56)
-	body.BackgroundColor3 = Color3.fromRGB(232, 46, 58)
-	body.ZIndex = 4
-	body.Parent = holder
-	corner(body, 10)
-	outline(body, 3)
-	local g = Instance.new("UIGradient")
-	g.Color = ColorSequence.new(Color3.fromRGB(255, 255, 255), Color3.fromRGB(190, 190, 190))
-	g.Rotation = 90
-	g.Parent = body
-	for i = 0, 2 do
-		local slot = Instance.new("Frame")
-		slot.AnchorPoint = Vector2.new(0.5, 0.5)
-		slot.Position = UDim2.fromScale(0.25 + i * 0.25, 0.58)
-		slot.Size = UDim2.fromScale(0.1, 0.5)
-		slot.BackgroundColor3 = Color3.fromRGB(150, 20, 30)
-		slot.ZIndex = 5
-		slot.Parent = body
-		corner(slot, 4)
-	end
-	local rim = Instance.new("Frame")
-	rim.AnchorPoint = Vector2.new(0.5, 0.5)
-	rim.Position = UDim2.fromScale(0.5, 0.02)
-	rim.Size = UDim2.fromScale(1.1, 0.24)
-	rim.BackgroundColor3 = Color3.fromRGB(255, 92, 100)
-	rim.ZIndex = 6
-	rim.Parent = body
-	corner(rim, 6)
-	outline(rim, 3)
+	body.Position = UDim2.fromScale(0.5, 0.94)
+	body.Size = UDim2.fromScale(0.74, 0.72)
+	body.BackgroundColor3 = Color3.fromRGB(50, 130, 240)
+	body.ZIndex = 5
+	body.Parent = h
+	corner(body, 16)
+	outline(body, 3, Color3.fromRGB(15, 40, 110))
+	local flap = Instance.new("Frame")
+	flap.Size = UDim2.fromScale(1, 0.42)
+	flap.BackgroundColor3 = Color3.fromRGB(80, 160, 255)
+	flap.ZIndex = 6
+	flap.Parent = body
+	corner(flap, 14)
+	outline(flap, 3, Color3.fromRGB(15, 40, 110))
+	local buckle = Instance.new("Frame")
+	buckle.AnchorPoint = Vector2.new(0.5, 0.5)
+	buckle.Position = UDim2.fromScale(0.5, 0.42)
+	buckle.Size = UDim2.fromScale(0.34, 0.18)
+	buckle.BackgroundColor3 = Color3.fromRGB(255, 205, 50)
+	buckle.ZIndex = 7
+	buckle.Parent = body
+	corner(buckle, 5)
+	outline(buckle, 3, Color3.fromRGB(120, 70, 10))
 end
 
-local function iconText(parent, glyph)
-	local ic = text(parent, glyph, UDim2.fromScale(0, 0), UDim2.fromScale(1, 0.92), 70)
-	ic.TextStrokeTransparency = 1
-	ic.ZIndex = 3
-	return ic
-end
-
--- Тёмная скруглённая плитка как в примере: светлая внутренняя рамка, крупная иконка
--- и золотая подпись с толстой обводкой, налезающая на нижний край
-local function sideButton(drawIcon, label, y, window)
-	local b = Instance.new("TextButton")
-	b.Size = UDim2.fromOffset(112, 112)
-	b.Position = UDim2.fromOffset(4, y)
-	b.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-	b.Text = ""
+-- Кнопка-таблетка: если в Config.UI_ICONS указан номер картинки кнопки — показываем её
+-- (точь-в-точь как на присланной картинке), иначе рисуем такую же кодом.
+local function pillButton(y, label, base, drawIcon, imageId, window)
+	local b = Instance.new("ImageButton")
+	b.Size = UDim2.fromOffset(250, 84)
+	b.Position = UDim2.fromOffset(0, y)
+	b.BackgroundTransparency = 1
 	b.AutoButtonColor = false
+	b.Image = ""
 	b.Parent = side
-	corner(b, 26)
-	outline(b, 4)
-	local g = Instance.new("UIGradient")
-	g.Color = ColorSequence.new(Color3.fromRGB(84, 86, 98), Color3.fromRGB(40, 42, 50))
-	g.Rotation = 90
-	g.Parent = b
 
-	local bevel = Instance.new("Frame")
-	bevel.Size = UDim2.new(1, -12, 1, -12)
-	bevel.Position = UDim2.fromOffset(6, 6)
-	bevel.BackgroundTransparency = 1
-	bevel.ZIndex = 2
-	bevel.Parent = b
-	corner(bevel, 21)
-	outline(bevel, 2.5, Color3.fromRGB(128, 130, 144))
+	if imageId and tostring(imageId) ~= "" then
+		b.Image = "rbxassetid://" .. tostring(imageId)
+		b.ScaleType = Enum.ScaleType.Fit
+	else
+		local dark = base:Lerp(Color3.new(0, 0, 0), 0.55)
+		local pill = Instance.new("Frame")
+		pill.Position = UDim2.fromOffset(26, 8)
+		pill.Size = UDim2.new(1, -26, 1, -16)
+		pill.BackgroundColor3 = Color3.new(1, 1, 1)
+		pill.ZIndex = 2
+		pill.Parent = b
+		local pc = Instance.new("UICorner")
+		pc.CornerRadius = UDim.new(0.5, 0)
+		pc.Parent = pill
+		outline(pill, 4, dark)
+		local g = Instance.new("UIGradient")
+		g.Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, base:Lerp(Color3.new(1, 1, 1), 0.3)),
+			ColorSequenceKeypoint.new(0.5, base),
+			ColorSequenceKeypoint.new(1, base:Lerp(Color3.new(0, 0, 0), 0.25)),
+		})
+		g.Rotation = 90
+		g.Parent = pill
+		-- блик сверху
+		local gloss = Instance.new("Frame")
+		gloss.Position = UDim2.fromScale(0.08, 0.1)
+		gloss.Size = UDim2.fromScale(0.86, 0.32)
+		gloss.BackgroundColor3 = Color3.new(1, 1, 1)
+		gloss.BackgroundTransparency = 0.62
+		gloss.ZIndex = 3
+		gloss.Parent = pill
+		local gc = Instance.new("UICorner")
+		gc.CornerRadius = UDim.new(0.5, 0)
+		gc.Parent = gloss
+		-- надпись
+		local t = text(pill, label, UDim2.fromOffset(58, 0), UDim2.new(1, -70, 1, 0), 36)
+		t.ZIndex = 4
+		t.TextScaled = true
+		local limit = Instance.new("UITextSizeConstraint")
+		limit.MaxTextSize = 38
+		limit.Parent = t
+		t.TextStrokeTransparency = 1
+		local ts = Instance.new("UIStroke")
+		ts.ApplyStrokeMode = Enum.ApplyStrokeMode.Contextual
+		ts.Color = dark
+		ts.Thickness = 3
+		ts.Parent = t
+		-- иконка слева, чуть выходит за край
+		local iconBox = Instance.new("Frame")
+		iconBox.BackgroundTransparency = 1
+		iconBox.AnchorPoint = Vector2.new(0, 0.5)
+		iconBox.Position = UDim2.new(0, 0, 0.5, 0)
+		iconBox.Size = UDim2.fromOffset(84, 84)
+		iconBox.ZIndex = 4
+		iconBox.Parent = b
+		drawIcon(iconBox)
+	end
 
-	drawIcon(b)
-
-	local lbl = text(b, label, UDim2.new(0, -20, 1, -28), UDim2.new(1, 40, 0, 40), 32)
-	lbl.ZIndex = 8
-	chunky(lbl, 3.5)
-	local lg = Instance.new("UIGradient")
-	lg.Color = ColorSequence.new(Color3.fromRGB(255, 238, 120), Color3.fromRGB(255, 150, 30))
-	lg.Rotation = 90
-	lg.Parent = lbl
-
-	-- лёгкая анимация нажатия
 	local scale = Instance.new("UIScale")
 	scale.Parent = b
 	b.MouseEnter:Connect(function()
-		TweenService:Create(scale, TweenInfo.new(0.12), { Scale = 1.06 }):Play()
+		TweenService:Create(scale, TweenInfo.new(0.12), { Scale = 1.05 }):Play()
 	end)
 	b.MouseLeave:Connect(function()
 		TweenService:Create(scale, TweenInfo.new(0.12), { Scale = 1 }):Play()
@@ -437,23 +520,35 @@ local function sideButton(drawIcon, label, y, window)
 	b.Activated:Connect(function()
 		scale.Scale = 0.92
 		TweenService:Create(scale, TweenInfo.new(0.15, Enum.EasingStyle.Back), { Scale = 1 }):Play()
-		local open = not window.Visible
-		boostsWindow.Visible = false
-		shopWindow.Visible = false
-		window.Visible = open
+		openWindow(window)
 	end)
 	return b
 end
-sideButton(function(parent)
-	if not iconImage(parent, Config.UI_ICONS.shop) then
-		basketIcon(parent)
+pillButton(0, "Магазин", Color3.fromRGB(235, 45, 60), shopIcon, Config.UI_ICONS.shopButton, shopWindow)
+pillButton(100, "Инвентарь", Color3.fromRGB(30, 120, 240), backpackIcon, Config.UI_ICONS.inventoryButton, boostsWindow)
+
+-- Встал в жёлтое кольцо у прилавка — открывается магазин
+task.spawn(function()
+	local wasIn = false
+	while true do
+		task.wait(0.2)
+		local ring = workspace:GetAttribute("ShopRing")
+		local radius = workspace:GetAttribute("ShopRingRadius") or 3
+		local char = player.Character
+		local root = char and char:FindFirstChild("HumanoidRootPart")
+		if typeof(ring) == "Vector3" and root then
+			local d = root.Position - ring
+			local inside = Vector2.new(d.X, d.Z).Magnitude <= radius + 0.5 and math.abs(d.Y) < 7
+			if inside and not wasIn then
+				boostsWindow.Visible = false
+				shopWindow.Visible = true
+			elseif not inside and wasIn then
+				shopWindow.Visible = false
+			end
+			wasIn = inside
+		end
 	end
-end, "Магазин", 0, shopWindow)
-sideButton(function(parent)
-	if not iconImage(parent, Config.UI_ICONS.boosts) then
-		iconText(parent, "⚡")
-	end
-end, "Усиления", 150, boostsWindow)
+end)
 
 -- ===== Создание лобби (по центру) =====
 local setup = frame(gui, UDim2.fromOffset(420, 440), Vector2.new(0.5, 0.5), UDim2.fromScale(0.5, 0.5))
