@@ -85,8 +85,11 @@ color.Brightness = 0.02
 color.TintColor = Color3.fromRGB(255, 250, 242)
 color.Parent = Lighting
 
--- без «реалистичной» травы-лезвий: чище и мультяшнее, ничего не прячет предметы
-Workspace.Terrain.Decoration = false
+-- Травинки на траве выключаются только в Studio (Workspace -> Terrain -> Decoration),
+-- из скрипта Roblox это менять не даёт, поэтому пробуем осторожно и не падаем.
+pcall(function()
+	Workspace.Terrain.Decoration = false
+end)
 
 local clouds = Instance.new("Clouds")
 clouds.Cover = 0.45
@@ -94,7 +97,16 @@ clouds.Density = 0.55
 clouds.Parent = Workspace.Terrain
 
 -- Лес генерируется в фоне, пока строится хаб и игроки в нём
-task.spawn(Forest.generate)
+task.spawn(function()
+	local ok, err = xpcall(Forest.generate, debug.traceback)
+	if not ok then
+		warn("[Forest] ошибка генерации леса:\n" .. tostring(err))
+	end
+end)
 
-local pads = Hub.build()
-LobbyService.start(pads)
+local ok, result = xpcall(Hub.build, debug.traceback)
+if not ok then
+	warn("[Hub] ошибка постройки лобби:\n" .. tostring(result))
+	result = require(script.Parent.Hub).pads
+end
+LobbyService.start(result)

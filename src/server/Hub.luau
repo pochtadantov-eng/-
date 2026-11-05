@@ -515,7 +515,9 @@ local function buildPads(folder)
 		gui.AlwaysOnTop = true
 		gui.MaxDistance = 400
 		gui.LightInfluence = 0
-		gui.Brightness = 2
+		pcall(function()
+			gui.Brightness = 2
+		end)
 		gui.Parent = anchor
 
 		local label = Instance.new("TextLabel")
