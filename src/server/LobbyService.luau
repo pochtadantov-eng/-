@@ -240,6 +240,8 @@ local function begin(p)
 				if m.Parent == Players then
 					Remotes.CutsceneFx:FireClient(m, "Loading", false)
 					Remotes.CutsceneFx:FireClient(m, "Camera", nil, nil)
+					Remotes.CutsceneFx:FireClient(m, "FirstPerson", false)
+					Remotes.CutsceneFx:FireClient(m, "Controls", true)
 					Remotes.CutsceneFx:FireClient(m, "Fade", false, 0.5)
 					task.spawn(function()
 						m:LoadCharacter()

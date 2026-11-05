@@ -66,14 +66,62 @@ local function fadeTo(track, on)
 	end
 end
 
--- Дымка: в лесу густая (дальние края растворяются, мир не выглядит островом), в лобби лёгкая
+-- Свет и дымка по зонам: в лобби солнечный день, в поездке и в лесу — сумрак,
+-- густая тёмная дымка (дальние края растворяются, мир не выглядит островом)
 local Lighting = game:GetService("Lighting")
-local FOG = {
-	hub = { Density = 0.14, Haze = 0.5, Offset = 0.2, Color = Color3.fromRGB(205, 220, 240) },
-	stage = { Density = 0.3, Haze = 1.2, Offset = 0.1, Color = Color3.fromRGB(205, 220, 230) },
-	forest = { Density = 0.46, Haze = 2.2, Offset = 0.05, Color = Color3.fromRGB(190, 205, 200) },
+local LIGHT = {
+	hub = {
+		lighting = { ClockTime = 14, Brightness = 2.6, Ambient = Color3.fromRGB(120, 125, 135), OutdoorAmbient = Color3.fromRGB(150, 155, 165) },
+		fog = { Density = 0.14, Haze = 0.5, Offset = 0.2, Color = Color3.fromRGB(205, 220, 240), Decay = Color3.fromRGB(160, 180, 210) },
+	},
+	stage = {
+		lighting = { ClockTime = 18.9, Brightness = 1.1, Ambient = Color3.fromRGB(60, 64, 72), OutdoorAmbient = Color3.fromRGB(78, 84, 96) },
+		fog = { Density = 0.5, Haze = 2.4, Offset = 0, Color = Color3.fromRGB(70, 82, 86), Decay = Color3.fromRGB(40, 46, 52) },
+	},
+	forest = {
+		lighting = { ClockTime = 18.7, Brightness = 1.3, Ambient = Color3.fromRGB(66, 70, 78), OutdoorAmbient = Color3.fromRGB(86, 92, 104) },
+		fog = { Density = 0.5, Haze = 2.4, Offset = 0, Color = Color3.fromRGB(76, 88, 90), Decay = Color3.fromRGB(44, 50, 56) },
+	},
 }
 local lastZone
+
+-- Пылинки вокруг камеры (в поездке и в лесу)
+local dustPart = Instance.new("Part")
+dustPart.Name = "DustArea"
+dustPart.Anchored = true
+dustPart.CanCollide = false
+dustPart.CanQuery = false
+dustPart.CanTouch = false
+dustPart.Transparency = 1
+dustPart.Size = Vector3.new(26, 14, 26)
+dustPart.Parent = Workspace
+local dust = Instance.new("ParticleEmitter")
+dust.Shape = Enum.ParticleEmitterShape.Box
+dust.ShapeStyle = Enum.ParticleEmitterShapeStyle.Volume
+dust.Rate = 45
+dust.Lifetime = NumberRange.new(4, 7)
+dust.Speed = NumberRange.new(0.1, 0.5)
+dust.SpreadAngle = Vector2.new(180, 180)
+dust.Acceleration = Vector3.new(0, 0.05, 0)
+dust.Drag = 1
+dust.RotSpeed = NumberRange.new(-30, 30)
+dust.Size = NumberSequence.new({
+	NumberSequenceKeypoint.new(0, 0),
+	NumberSequenceKeypoint.new(0.2, 0.09),
+	NumberSequenceKeypoint.new(0.8, 0.07),
+	NumberSequenceKeypoint.new(1, 0),
+})
+dust.Transparency = NumberSequence.new(0.25)
+dust.Color = ColorSequence.new(Color3.fromRGB(255, 240, 210))
+dust.LightEmission = 0.6
+dust.LightInfluence = 0.2
+dust.Enabled = false
+dust.Parent = dustPart
+RunService.RenderStepped:Connect(function()
+	if dust.Enabled then
+		dustPart.CFrame = CFrame.new(camera.CFrame.Position)
+	end
+end)
 
 task.spawn(function()
 	while true do
@@ -82,10 +130,15 @@ task.spawn(function()
 		fadeTo(forestMusic, zone == "forest")
 		if zone ~= lastZone then
 			lastZone = zone
-			local atm = Lighting:FindFirstChildOfClass("Atmosphere")
-			if atm and FOG[zone] then
-				TweenService:Create(atm, TweenInfo.new(1.5), FOG[zone]):Play()
+			local preset = LIGHT[zone]
+			if preset then
+				TweenService:Create(Lighting, TweenInfo.new(1.5), preset.lighting):Play()
+				local atm = Lighting:FindFirstChildOfClass("Atmosphere")
+				if atm then
+					TweenService:Create(atm, TweenInfo.new(1.5), preset.fog):Play()
+				end
 			end
+			dust.Enabled = zone ~= "hub"
 		end
 		task.wait(0.5)
 	end

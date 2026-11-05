@@ -45,6 +45,16 @@ local function camera(players, stageName, partName)
 	end
 end
 
+-- Вид от первого лица (можно крутить головой) и блокировка управления на время сцены
+local function firstPerson(players, on, lookAt)
+	for _, pl in players do
+		if pl.Parent == Players then
+			Remotes.CutsceneFx:FireClient(pl, "FirstPerson", on, lookAt)
+			Remotes.CutsceneFx:FireClient(pl, "Controls", not on)
+		end
+	end
+end
+
 local function fade(players, toBlack, duration)
 	for _, pl in players do
 		if pl.Parent == Players then
@@ -90,22 +100,49 @@ end
 
 local function buildStage(stage, origin, padId)
 	local rng = Random.new(padId * 77)
-	newPart(stage, "Ground", Vector3.new(1000, 1, 170), CFrame.new(origin + Vector3.new(300, -0.5, 0)), Color3.fromRGB(86, 140, 62), Enum.Material.SmoothPlastic)
-	newPart(stage, "Road", Vector3.new(700, 0.2, 22), CFrame.new(origin + Vector3.new(300, 0.1, 0)), Color3.fromRGB(78, 76, 74), Enum.Material.SmoothPlastic)
+	newPart(stage, "Ground", Vector3.new(1000, 1, 170), CFrame.new(origin + Vector3.new(300, -0.5, 0)), Color3.fromRGB(70, 112, 56), Enum.Material.SmoothPlastic)
+	newPart(stage, "Road", Vector3.new(700, 0.2, 22), CFrame.new(origin + Vector3.new(300, 0.1, 0)), Color3.fromRGB(70, 68, 66), Enum.Material.SmoothPlastic)
+
+	-- тропинка в густой лес от места остановки (по ней выходят игроки)
+	local stop = Config.DRIVE_DISTANCE
+	local pathPts = {}
+	local px, pz = stop + REAR - 9, -11
+	for _ = 0, 16 do
+		table.insert(pathPts, Vector2.new(px, pz))
+		px += rng:NextNumber(-2.2, 2.2)
+		pz -= 5
+	end
+	for i = 1, #pathPts - 1 do
+		local p1 = origin + Vector3.new(pathPts[i].X, 0.1, pathPts[i].Y)
+		local p2 = origin + Vector3.new(pathPts[i + 1].X, 0.1, pathPts[i + 1].Y)
+		local seg = newPart(stage, "Path", Vector3.new(4.4, 0.1, (p2 - p1).Magnitude + 1.4), CFrame.lookAt((p1 + p2) / 2, p2), Color3.fromRGB(104, 80, 56), Enum.Material.SmoothPlastic)
+		seg.CanQuery = false
+	end
+	local function nearPath(x, z)
+		for _, p in pathPts do
+			local dx, dz = x - p.X, z - p.Y
+			if dx * dx + dz * dz < 40 then
+				return true
+			end
+		end
+		return false
+	end
 
 	local function tree(x, z)
+		if nearPath(x, z) then
+			return
+		end
 		local cf = CFrame.new(origin + Vector3.new(x, 0, z)) * CFrame.Angles(0, rng:NextNumber(0, math.pi * 2), 0)
-		Forest.makeTree(cf, rng:NextNumber(1.0, 1.6), rng).Parent = stage
+		Forest.makeTree(cf, rng:NextNumber(1.0, 1.7), rng).Parent = stage
 	end
 	for side = -1, 1, 2 do
 		for _ = 1, 40 do
 			tree(rng:NextNumber(-40, 640), side * rng:NextNumber(18, 70))
 		end
 	end
-	-- густой лес там, где фургон остановится (лесник покажет туда)
-	local stop = Config.DRIVE_DISTANCE
-	for _ = 1, 45 do
-		tree(stop + rng:NextNumber(-70, 30), -rng:NextNumber(16, 80))
+	-- густой лес вокруг тропинки
+	for _ = 1, 90 do
+		tree(stop + rng:NextNumber(-80, 40), -rng:NextNumber(15, 85))
 	end
 end
 
@@ -611,7 +648,8 @@ function Cutscene.run(padId, players, mapId)
 	end
 
 	task.wait(0.6)
-	camera(players, stage.Name, "CamInside")
+	local lookAt = forester and forester.rig:FindFirstChild("Head") and forester.rig.Head.Position or truck.base.CFrame:PointToWorldSpace(Vector3.new(FORESTER_X, FLOOR_TOP + 4.5, 0))
+	firstPerson(players, true, lookAt)
 	fade(players, false, 0.8)
 	task.wait(0.8)
 
@@ -676,15 +714,6 @@ function Cutscene.run(padId, players, mapId)
 	end
 	openDoor(truck, -1, baseCF, 1.1)
 
-	-- камера снаружи, сбоку от задних дверей
-	local camPos = baseCF:PointToWorldSpace(Vector3.new(REAR - 15, 6.5, 6))
-	local camOut = newPart(stage, "CamOutside", Vector3.one * 0.2, CFrame.lookAt(camPos, baseCF:PointToWorldSpace(Vector3.new(REAR - 6, 3.5, -5))), Color3.new(), Enum.Material.SmoothPlastic)
-	camOut.Transparency = 1
-	camOut.CanCollide = false
-	camOut.CanQuery = false
-	task.wait(0.2)
-	camera(players, stage.Name, "CamOutside")
-
 	if forester then
 		walkTo(forester, at(REAR - 2.6, -2.8), 4)
 		task.wait(0.3)
@@ -693,13 +722,41 @@ function Cutscene.run(padId, players, mapId)
 	openDoor(truck, 1, baseCF, 1.1)
 	if forester then
 		walkTo(forester, at(REAR - 8.5, -2.8), 4)
-		walkTo(forester, at(REAR - 8.5, -8), 4)
+		walkTo(forester, at(REAR - 13, -7), 4)
 		turnTo(forester, -baseCF.ZVector, 0.6)
 		point(forester)
 	end
 	task.wait(0.4)
 	say(forester, players, "Выходим!", 2.6)
-	task.wait(2.4)
+	task.wait(1.2)
+
+	-- игроки сами встают и плавно выходят из фургона на тропинку (смотреть можно по сторонам)
+	local n = #riders
+	for i, r in riders do
+		local char, hum, root = charParts(r.player)
+		if char then
+			local sw = r.seat:FindFirstChild("SeatWeld")
+			if sw then
+				sw:Destroy()
+			end
+			hum.Sit = false
+			local sp = baseCF:PointToObjectSpace(r.seat.Position)
+			local lane = math.clamp((i - (n + 1) / 2) * 1.3, -3, 3)
+			local route = {
+				at(sp.X, lane * 0.4),
+				at(REAR + 1.2, lane),
+				at(REAR - 8, lane),
+				at(REAR - 9, -12 + lane * 0.5),
+				at(REAR - 9.5, -19 + lane * 0.5),
+			}
+			task.delay((i - 1) * 0.35, function()
+				if r.player.Parent == Players then
+					Remotes.CutsceneFx:FireClient(r.player, "AutoWalk", route, 7)
+				end
+			end)
+		end
+	end
+	task.wait(7.5)
 
 	-- 5. Затемнение и телепорт в лес
 	fade(players, true, 0.8)
@@ -754,7 +811,7 @@ function Cutscene.run(padId, players, mapId)
 	end
 
 	task.wait(0.4)
-	camera(players, nil, nil)
+	firstPerson(players, false)
 	for _, pl in players do
 		if pl.Parent == Players then
 			Remotes.CutsceneFx:FireClient(pl, "Loading", false)

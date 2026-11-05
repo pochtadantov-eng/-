@@ -608,10 +608,91 @@ local function setCutsceneCamera(stageName, partName)
 	end)
 end
 
+-- Управление персонажем (на время катсцены отключаем)
+local function getControls()
+	local ok, controls = pcall(function()
+		local pm = require(player:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule"))
+		return pm:GetControls()
+	end)
+	return ok and controls or nil
+end
+
+local walkToken = 0
+local savedWalkSpeed
+
 local subtitleToken = 0
 Remotes.CutsceneFx.OnClientEvent:Connect(function(kind, a, b)
 	if kind == "Camera" then
 		setCutsceneCamera(a, b)
+	elseif kind == "FirstPerson" then
+		local cam = workspace.CurrentCamera
+		if a then
+			-- вид от первого лица: можно крутить головой по сторонам
+			player.CameraMode = Enum.CameraMode.LockFirstPerson
+			cam.CameraType = Enum.CameraType.Custom
+			if typeof(b) == "Vector3" then
+				task.delay(0.2, function()
+					cam.CFrame = CFrame.lookAt(cam.CFrame.Position, b)
+				end)
+			end
+		else
+			player.CameraMode = Enum.CameraMode.Classic
+			-- отодвинуть камеру обратно за спину
+			player.CameraMinZoomDistance = 10
+			task.delay(0.1, function()
+				player.CameraMinZoomDistance = 0.5
+			end)
+		end
+	elseif kind == "Controls" then
+		local controls = getControls()
+		if controls then
+			if a then
+				controls:Enable()
+			else
+				controls:Disable()
+			end
+		end
+		if a then
+			-- конец автоходьбы: стоп и обычная скорость
+			walkToken += 1
+			local char = player.Character
+			local hum = char and char:FindFirstChildOfClass("Humanoid")
+			local root = char and char:FindFirstChild("HumanoidRootPart")
+			if hum and root then
+				hum:MoveTo(root.Position)
+				if savedWalkSpeed then
+					hum.WalkSpeed = savedWalkSpeed
+					savedWalkSpeed = nil
+				end
+			end
+		end
+	elseif kind == "AutoWalk" then
+		-- персонаж сам плавно идёт по точкам (а игрок смотрит по сторонам)
+		walkToken += 1
+		local mine = walkToken
+		task.spawn(function()
+			local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+			if not hum or typeof(a) ~= "table" then
+				return
+			end
+			savedWalkSpeed = savedWalkSpeed or hum.WalkSpeed
+			hum.WalkSpeed = b or 7
+			for _, wp in a do
+				if mine ~= walkToken then
+					return
+				end
+				local done = false
+				local conn = hum.MoveToFinished:Connect(function()
+					done = true
+				end)
+				hum:MoveTo(wp)
+				local t0 = os.clock()
+				while not done and os.clock() - t0 < 4 and mine == walkToken do
+					task.wait()
+				end
+				conn:Disconnect()
+			end
+		end)
 	elseif kind == "Fade" then
 		TweenService:Create(fadeFrame, TweenInfo.new(b or 0.5), { BackgroundTransparency = a and 0 or 1 }):Play()
 	elseif kind == "Loading" then
