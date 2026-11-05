@@ -1,5 +1,8 @@
 local Config = {}
 
+-- Номер версии виден в правом нижнем углу экрана — так видно, что запущен свежий код
+Config.VERSION = "15"
+
 -- Лобби
 Config.PAD_COUNT = 4
 Config.PAD_RADIUS = 8

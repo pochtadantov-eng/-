@@ -261,7 +261,16 @@ local function buildTruck(stage, baseCF, seatCount)
 
 	-- закрытый фургон: бока, передняя стенка, потолок
 	for _, sz in { -1, 1 } do
-		local side = add("Side", Vector3.new(boxLen, BOX_H, 0.5), Vector3.new(boxMidX, midY, sz * (HALF_W + 0.25)), green, Enum.Material.SmoothPlastic)
+		local wz = sz * (HALF_W + 0.25)
+		local lowH, winH = 3.4, 2.8 -- низ стены и высота окон (на уровне глаз сидящих)
+		local upH = BOX_H - lowH - winH
+		local side = add("SideLow", Vector3.new(boxLen, lowH, 0.5), Vector3.new(boxMidX, FLOOR_TOP + lowH / 2, wz), green, Enum.Material.SmoothPlastic)
+		add("SideHigh", Vector3.new(boxLen, upH, 0.5), Vector3.new(boxMidX, FLOOR_TOP + lowH + winH + upH / 2, wz), green, Enum.Material.SmoothPlastic)
+		for _, px in { REAR + 0.6, -5.3, -0.6, 4.1, FRONT - 0.6 } do
+			add("Pillar", Vector3.new(1.2, winH, 0.5), Vector3.new(px, FLOOR_TOP + lowH + winH / 2, wz), greenDark, Enum.Material.SmoothPlastic)
+		end
+		local glass = add("Window", Vector3.new(boxLen, winH, 0.1), Vector3.new(boxMidX, FLOOR_TOP + lowH + winH / 2, wz), Color3.fromRGB(160, 190, 200), Enum.Material.Glass, false)
+		glass.Transparency = 0.75
 		add("Stripe", Vector3.new(boxLen + 0.1, 0.7, 0.12), Vector3.new(boxMidX, FLOOR_TOP + 2.2, sz * (HALF_W + 0.56)), yellow, Enum.Material.SmoothPlastic, false)
 		local sg = Instance.new("SurfaceGui")
 		sg.Face = sz == 1 and Enum.NormalId.Back or Enum.NormalId.Front
@@ -271,8 +280,8 @@ local function buildTruck(stage, baseCF, seatCount)
 		local t = Instance.new("TextLabel")
 		t.BackgroundTransparency = 1
 		t.AnchorPoint = Vector2.new(0.5, 0.5)
-		t.Position = UDim2.fromScale(0.5, 0.42)
-		t.Size = UDim2.fromScale(0.8, 0.22)
+		t.Position = UDim2.fromScale(0.5, 0.3)
+		t.Size = UDim2.fromScale(0.7, 0.4)
 		t.Font = Enum.Font.FredokaOne
 		t.TextScaled = true
 		t.Text = "ЛЕСНАЯ СЛУЖБА"
@@ -633,9 +642,13 @@ end
 
 local function say(forester, players, text, duration)
 	duration = duration or 3
+	print("[Cutscene] Лесник: " .. text)
 	for _, pl in players do
 		if pl.Parent == Players then
-			Remotes.CutsceneFx:FireClient(pl, "Dialog", "Лесник", text, duration)
+			pl:SetAttribute("DialogName", "Лесник")
+			pl:SetAttribute("DialogText", text)
+			pl:SetAttribute("DialogTime", duration)
+			pl:SetAttribute("DialogId", (pl:GetAttribute("DialogId") or 0) + 1)
 		end
 	end
 	local head = forester and forester.rig:FindFirstChild("Head")
@@ -716,6 +729,15 @@ local function seatRider(r)
 	r.seat:Sit(hum)
 end
 
+-- Шаг сцены, который не должен ронять всю катсцену
+local function safe(label, fn)
+	local ok, err = pcall(fn)
+	if not ok then
+		warn("[Cutscene] шаг «" .. label .. "» не удался: " .. tostring(err))
+	end
+	return ok
+end
+
 local runCounter = 0
 local building = {} -- [padId] = stage, пока идёт катсцена (для уборки при ошибке)
 
@@ -743,6 +765,7 @@ function Cutscene.run(padId, players, mapId)
 	local slot = runCounter % 12
 	local origin = Config.STAGE_ORIGIN + Vector3.new(0, 0, slot * 240)
 
+	print("[Cutscene] старт, игроков: " .. #players)
 	-- 1. Затемнение и переход на карту
 	fade(players, true, 0.6)
 	task.wait(0.8)
@@ -780,20 +803,28 @@ function Cutscene.run(padId, players, mapId)
 		local head = forester and forester.rig:FindFirstChild("Head")
 		return head and head.Position or truck.base.CFrame:PointToWorldSpace(Vector3.new(FORESTER_X, FLOOR_TOP + 4.5, 0))
 	end
+	print("[Cutscene] игроки в фургоне, вид от первого лица")
 	firstPerson(players, true, foresterHead())
 	fade(players, false, 0.8)
 	task.wait(0.8)
 
 	-- 3. Едем, фургон покачивает; лесник говорит с ребятами
 	local talkDone = false
+	print("[Cutscene] едем, начинается диалог")
 	task.spawn(function()
 		task.wait(1.5)
 		for i, line in LINES do
-			lookAround(forester, (i % 2 == 0) and 0.5 or -0.5)
-			say(forester, players, line, 3.1)
+			safe("поворот головы", function()
+				lookAround(forester, (i % 2 == 0) and 0.5 or -0.5)
+			end)
+			safe("реплика", function()
+				say(forester, players, line, 3.1)
+			end)
 			task.wait(3.4)
 		end
-		lookAround(forester, 0)
+		safe("поворот головы", function()
+			lookAround(forester, 0)
+		end)
 		talkDone = true
 	end)
 
@@ -831,53 +862,63 @@ function Cutscene.run(padId, players, mapId)
 	local function onGround(x, z)
 		return baseCF:PointToWorldSpace(Vector3.new(x, 3.2, z))
 	end
-	if forester then
-		forester.weld:Destroy()
-		forester.root.Anchored = true
-		turnTo(forester, -baseCF.XVector, 0.9)
-		walkTo(forester, onFloor(REAR + 1.3, -2.8), 5)
-		turnTo(forester, -baseCF.XVector, 0.3)
-	end
-	swingDoor(truck, -1, baseCF, 0, 1, 1.1)
-	if forester then
-		walkTo(forester, onFloor(REAR - 0.3, -2.8), 5)
-		walkTo(forester, onGround(REAR - 2.6, -2.8), 4)
-		task.wait(0.3)
-		turnTo(forester, baseCF.XVector, 0.6)
-	end
-	swingDoor(truck, 1, baseCF, 0, 1, 1.1)
-	if forester then
-		walkTo(forester, onGround(REAR - 8.5, -2.8), 6)
-		walkTo(forester, onGround(REAR - 13, -7), 6)
-		turnTo(forester, -baseCF.ZVector, 0.6)
-		point(forester, true)
-	end
-	task.wait(0.4)
+	print("[Cutscene] приехали, лесник выходит")
+	safe("лесник выходит и открывает двери", function()
+		if forester then
+			forester.weld:Destroy()
+			forester.root.Anchored = true
+			turnTo(forester, -baseCF.XVector, 0.9)
+			walkTo(forester, onFloor(REAR + 1.3, -2.8), 5)
+			turnTo(forester, -baseCF.XVector, 0.3)
+		end
+		swingDoor(truck, -1, baseCF, 0, 1, 1.1)
+		if forester then
+			walkTo(forester, onFloor(REAR - 0.3, -2.8), 5)
+			walkTo(forester, onGround(REAR - 2.6, -2.8), 4)
+			task.wait(0.3)
+			turnTo(forester, baseCF.XVector, 0.6)
+		end
+		swingDoor(truck, 1, baseCF, 0, 1, 1.1)
+		if forester then
+			walkTo(forester, onGround(REAR - 8.5, -2.8), 6)
+			walkTo(forester, onGround(REAR - 13, -7), 6)
+			turnTo(forester, -baseCF.ZVector, 0.6)
+			point(forester, true)
+		end
+		task.wait(0.4)
+	end)
 	say(forester, players, "Выходим!", 2.4)
 	task.wait(2.4)
 
 	-- 5. Затемнение: игроки уже стоят снаружи у фургона, лесник — внутри у дверей
 	fade(players, true, 0.6)
 	task.wait(0.8)
-	if forester then
-		point(forester, false)
-		forester.root.CFrame = CFrame.lookAt(onFloor(REAR + 1.8, 0), onFloor(REAR - 5, 0))
-	end
+	safe("лесник возвращается в фургон", function()
+		if forester then
+			point(forester, false)
+			forester.root.CFrame = CFrame.lookAt(onFloor(REAR + 1.8, 0), onFloor(REAR - 5, 0))
+		end
+	end)
+	print("[Cutscene] высаживаем игроков у фургона")
 	for i, r in riders do
-		local char, hum, root = charParts(r.player)
-		if char then
+		safe("высадка игрока", function()
+			local char, hum, root = charParts(r.player)
+			if not char then
+				return
+			end
 			local sw = r.seat:FindFirstChild("SeatWeld")
 			if sw then
 				sw:Destroy()
 			end
 			hum.Sit = false
 			Remotes.CutsceneFx:FireClient(r.player, "Stand")
+			task.wait(0.05)
 			local row = math.floor((i - 1) / 3)
 			local lane = ((i - 1) % 3 - 1) * 3.2
 			local pos = onGround(REAR - 10 - row * 3, lane)
 			char:PivotTo(CFrame.lookAt(pos, pos + baseCF.XVector))
 			root.AssemblyLinearVelocity = Vector3.zero
-		end
+		end)
 	end
 	firstPerson(players, true, foresterHead())
 	task.wait(0.3)
@@ -885,28 +926,37 @@ function Cutscene.run(padId, players, mapId)
 	task.wait(1.2)
 
 	-- 6. Лесник закрывает обе створки изнутри, фургон уезжает
-	swingDoor(truck, 1, baseCF, 1, 0, 1.0)
-	task.wait(0.2)
-	swingDoor(truck, -1, baseCF, 1, 0, 1.0)
-	task.wait(0.6)
+	print("[Cutscene] лесник закрывает двери, фургон уезжает")
+	safe("фургон уезжает", function()
+		swingDoor(truck, 1, baseCF, 1, 0, 1.0)
+		task.wait(0.2)
+		swingDoor(truck, -1, baseCF, 1, 0, 1.0)
+		task.wait(0.6)
 
-	local rel = forester and baseCF:ToObjectSpace(forester.root.CFrame)
-	local driveT = 6
-	local t1 = os.clock()
-	repeat
-		local t = os.clock() - t1
-		local a = math.clamp(t / driveT, 0, 1)
-		local e = TweenService:GetValue(a, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
-		local sway = CFrame.Angles(math.sin(t * 2.6) * 0.015 * a, 0, 0)
-		local cf = (baseCF + baseCF.XVector * 260 * e) * sway
-		truck.model:PivotTo(cf)
+		local rel = forester and baseCF:ToObjectSpace(forester.root.CFrame)
+		local driveT = 6
+		local t1 = os.clock()
+		repeat
+			local t = os.clock() - t1
+			local a = math.clamp(t / driveT, 0, 1)
+			local e = TweenService:GetValue(a, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+			local sway = CFrame.Angles(math.sin(t * 2.6) * 0.015 * a, 0, 0)
+			local cf = (baseCF + baseCF.XVector * 260 * e) * sway
+			truck.model:PivotTo(cf)
+			if forester then
+				forester.root.CFrame = cf * rel
+			end
+			RunService.Heartbeat:Wait()
+		until a >= 1
+		truck.model:Destroy()
 		if forester then
-			forester.root.CFrame = cf * rel
+			forester.rig:Destroy()
 		end
-		RunService.Heartbeat:Wait()
-	until a >= 1
-	truck.model:Destroy()
-	if forester then
+	end)
+	if truck.model.Parent then
+		truck.model:Destroy()
+	end
+	if forester and forester.rig.Parent then
 		forester.rig:Destroy()
 	end
 
@@ -919,6 +969,7 @@ function Cutscene.run(padId, players, mapId)
 		end
 	end
 	firstPerson(players, false)
+	print("[Cutscene] готово, игроки на карте")
 	building[padId] = nil
 	watchStage(stage, riders, origin)
 end

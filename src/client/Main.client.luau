@@ -601,6 +601,16 @@ local function showDialog(name, line, duration)
 	end)
 end
 
+-- Реплики приходят через свойства игрока (самый надёжный канал)
+player:GetAttributeChangedSignal("DialogId"):Connect(function()
+	showDialog(player:GetAttribute("DialogName") or "", player:GetAttribute("DialogText") or "", player:GetAttribute("DialogTime") or 3)
+end)
+
+-- Номер версии в углу: видно, что запущен свежий код
+local versionLabel = text(gui, "версия " .. tostring(Config.VERSION or "?"), UDim2.new(1, -170, 1, -34), UDim2.fromOffset(160, 28), 18, Color3.fromRGB(200, 200, 200))
+versionLabel.TextXAlignment = Enum.TextXAlignment.Right
+versionLabel.TextTransparency = 0.3
+
 local subtitleLabel = text(gui, "", UDim2.new(0.5, -300, 1, -130), UDim2.fromOffset(600, 60), 36)
 subtitleLabel.Visible = false
 subtitleLabel.ZIndex = 50
@@ -664,6 +674,7 @@ Remotes.CutsceneFx.OnClientEvent:Connect(function(kind, a, b, ...)
 	if kind == "Camera" then
 		setCutsceneCamera(a, b)
 	elseif kind == "FirstPerson" then
+		print("[Client] вид от первого лица:", a)
 		local cam = workspace.CurrentCamera
 		if a then
 			-- вид от первого лица: можно крутить головой по сторонам
